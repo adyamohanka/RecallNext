@@ -58,6 +58,12 @@ def test_conflict_or_timeout_is_unresolved_even_when_no_recalled_row_exists():
     assert all(item["status"] == UNRESOLVED for item in decisions)
 
 
+def test_contradictory_evidence_is_unresolved_not_an_exclusion():
+    decisions = classify_shipments([], SHIPMENTS, [[]], ["RECALLED"], {"solver_status": "CONFLICT"})
+
+    assert all(item["status"] == UNRESOLVED for item in decisions)
+
+
 def test_empty_feasible_set_is_unresolved_not_excluded():
     decisions = classify_shipments([], SHIPMENTS, [], ["RECALLED"])
 
@@ -95,3 +101,26 @@ def test_tiny_oracle_and_planner_agree():
         ["RECALLED"],
     )
     assert direct == expected
+
+
+def test_same_lot_code_from_another_source_is_not_treated_as_recalled():
+    scenarios = [
+        [
+            {"shipment_id": "S-1", "lot_id": "SOURCE-A:LOT-7", "quantity_cases": 4},
+            {"shipment_id": "S-2", "lot_id": "SOURCE-B:LOT-7", "quantity_cases": 4},
+        ]
+    ]
+
+    decisions = classify_shipments([], SHIPMENTS, scenarios, ["SOURCE-A:LOT-7"])
+
+    assert decisions[0]["status"] == CONFIRMED_INCLUSION
+    assert decisions[1]["status"] == EXCLUDED_UNDER_ASSUMPTIONS
+
+
+def test_invalid_candidate_quantity_is_rejected_instead_of_silently_reconciled():
+    scenarios = [[{"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": -1}]]
+
+    import pytest
+
+    with pytest.raises(ValueError, match="non-negative"):
+        classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])

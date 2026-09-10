@@ -36,3 +36,21 @@ def test_dominated_action_is_removed_and_order_is_deterministic():
     ranked = rank_actions(CURRENT, actions, {"SLOW": resolved, "FAST": resolved})
 
     assert [item["action_id"] for item in ranked] == ["FAST"]
+
+
+def test_retracted_evidence_does_not_preserve_a_previous_exclusion():
+    """Reassessment after retraction returns to unresolved rather than clearing."""
+    action = [{"action_id": "RETRACT", "estimated_minutes": 1}]
+    retracted = {
+        "RETRACT": [
+            {
+                "outcome": "CONFLICTING",
+                "decisions": [{"shipment_id": "S-1", "held_cases": 10, "status": UNRESOLVED}],
+            }
+        ]
+    }
+
+    ranked = rank_actions(CURRENT, action, retracted)
+
+    assert ranked[0]["worst_case_resolved_cases"] == 0
+    assert ranked[0]["outcomes"][0]["remaining_unresolved_cases"] == 10

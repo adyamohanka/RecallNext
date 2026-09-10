@@ -22,3 +22,10 @@ python3 -m pytest
 The exhaustive oracle is deliberately limited to tiny cases and exists only to
 validate production bounds. It must not supply hidden ground truth to the
 planner.
+
+## Lot identity and adapters
+
+Pass `lot_id` as a source-qualified stable identifier, for example
+`SUPPLIER-A:LOT-42`. The planner deliberately treats `SUPPLIER-A:LOT-42` and
+`SUPPLIER-B:LOT-42` as distinct lots. Sakthi's Exasol adapter should construct
+that identity from `LOT_SOURCE_ID` and `LOT_CODE` before creating scenarios.
