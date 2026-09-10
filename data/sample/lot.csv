@@ -1,0 +1,4 @@
+lot_id,lot_code,lot_source_id,product_id,quantity_cases,recalled,received_at,location_id,source_event_id
+FARM-A:REC-2026-01,REC-2026-01,FARM-A,PROD-APPLE,12,true,2026-09-07 07:10:00,WH-01,EV-RECV-001
+FARM-A:GOOD-2026-01,GOOD-2026-01,FARM-A,PROD-APPLE,8,false,2026-09-07 07:20:00,WH-01,EV-RECV-002
+FARM-B:REC-2026-01,REC-2026-01,FARM-B,PROD-APPLE,10,false,2026-09-07 07:30:00,WH-01,EV-RECV-003

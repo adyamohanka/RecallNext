@@ -1,0 +1,7 @@
+shipment_id,container_id,pick_quantity_cases,pick_record_id
+S-100,C-100,5,PICK-100
+S-200,C-100,5,
+S-300,C-200,5,
+S-400,C-200,5,PICK-400
+S-500,C-300,5,PICK-500
+S-600,C-300,5,PICK-600
