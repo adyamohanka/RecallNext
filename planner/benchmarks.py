@@ -8,10 +8,12 @@ measure with their own evidence-outcome simulator.
 from __future__ import annotations
 
 import random
+import time
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from .evidence_planner import rank_actions
+from .evidence_planner import RESOLVED_STATUSES, rank_actions
+from .models import EXCLUDED_UNDER_ASSUMPTIONS
 
 
 def _value(item: Any, name: str, default: Any = None) -> Any:
@@ -43,4 +45,52 @@ def baseline_action_orders(
             ids, key=lambda action_id: (-int(involved.get(action_id, 0)), action_id)
         ),
         "recallnext_ranking": [item["action_id"] for item in ranked],
+    }
+
+
+def evaluate_decision_trace(
+    decision_trace: Iterable[Iterable[Any]],
+    action_ids: Iterable[str],
+    action_minutes: Mapping[str, float],
+    ground_truth_recalled_cases: Mapping[str, int],
+) -> dict[str, Any]:
+    """Measure a simulated policy trace for tests and evaluation reports only.
+
+    ``ground_truth_recalled_cases`` is deliberately explicit and must never be
+    passed to production classification or action ranking. It lets a synthetic
+    benchmark count dangerous false exclusions and unnecessary holds.
+    """
+
+    started = time.perf_counter()
+    snapshots = [list(snapshot) for snapshot in decision_trace]
+    if not snapshots:
+        raise ValueError("decision_trace must contain at least the initial snapshot")
+    selected_actions = list(action_ids)
+    missing_effort = [action_id for action_id in selected_actions if action_id not in action_minutes]
+    if missing_effort:
+        raise ValueError(f"missing estimated minutes for actions: {', '.join(missing_effort)}")
+
+    final = {str(_value(decision, "shipment_id")): decision for decision in snapshots[-1]}
+    false_exclusions = 0
+    unnecessary_holds = 0
+    covered_cases = 0
+    for shipment_id, decision in final.items():
+        truth = int(ground_truth_recalled_cases.get(shipment_id, 0))
+        status = _value(decision, "status")
+        held = int(_value(decision, "held_cases", 0))
+        if status == EXCLUDED_UNDER_ASSUMPTIONS and truth > 0:
+            false_exclusions += truth
+        if truth == 0 and status not in RESOLVED_STATUSES:
+            unnecessary_holds += held
+        if status in RESOLVED_STATUSES:
+            covered_cases += held
+
+    return {
+        "actions": len(selected_actions),
+        "simulated_minutes": sum(float(action_minutes[action_id]) for action_id in selected_actions),
+        "false_excluded_cases": false_exclusions,
+        "resolved_cases": covered_cases,
+        "unnecessary_held_cases": unnecessary_holds,
+        "snapshot_count": len(snapshots),
+        "evaluation_seconds": time.perf_counter() - started,
     }
