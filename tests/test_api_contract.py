@@ -107,6 +107,22 @@ def test_malformed_or_action_mismatched_fact_is_rejected_before_review():
         )
         assert mismatched.status_code == 422
 
+        incompatible_observation = client.post(
+            "/api/incidents/INC-DEMO-001/evidence",
+            json={
+                **base,
+                "action_id": "ACT-SCAN-C200",
+                "content_hash": "invalid003456789",
+                "proposed_fact": {
+                    "fact_type": "observed_case",
+                    "shipment_id": "S-300",
+                    "lot_id": "FARM-B:REC-2026-01",
+                    "scope": "SINGLE_CASE_ONLY",
+                },
+            },
+        )
+        assert incompatible_observation.status_code == 422
+
 
 def test_human_rejection_keeps_current_version():
     with TestClient(create_app()) as client:

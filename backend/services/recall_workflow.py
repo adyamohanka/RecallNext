@@ -317,6 +317,10 @@ class RecallWorkflow:
             raise WorkflowError("observed case contains an unknown lot_id")
         if fact.get("scope") != "SINGLE_CASE_ONLY":
             raise WorkflowError("observed cases must use SINGLE_CASE_ONLY scope")
+        if not self._apply_fact(self._base_scenarios, fact):
+            raise WorkflowError(
+                "observed case lot is incompatible with the target shipment"
+            )
 
     def _version(self, version: int | None = None) -> dict[str, Any]:
         selected = self.current_version if version is None else version
@@ -417,7 +421,18 @@ class RecallWorkflow:
                 )
             ]
         if fact_type == "observed_case":
-            return scenarios
+            shipment_id = str(fact.get("shipment_id", ""))
+            lot_id = str(fact.get("lot_id", ""))
+            return [
+                scenario
+                for scenario in scenarios
+                if any(
+                    row["shipment_id"] == shipment_id
+                    and row["lot_id"] == lot_id
+                    and row["quantity_cases"] > 0
+                    for row in scenario
+                )
+            ]
         raise WorkflowError(f"unsupported fact_type {fact_type!r}")
 
     @staticmethod
@@ -486,7 +501,8 @@ class RecallWorkflow:
                     "lot_id": lot["lot_id"],
                     "scope": "SINGLE_CASE_ONLY",
                 }
-                facts[json.dumps(fact, sort_keys=True)] = fact
+                if self._apply_fact(scenarios, fact):
+                    facts[json.dumps(fact, sort_keys=True)] = fact
         return list(facts.values())
 
     def evidence_actions(self) -> dict[str, Any]:

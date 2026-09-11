@@ -26,12 +26,12 @@
     {
       "name": "mixed_container_single_scan",
       "layer": "workflow",
-      "reason": "One retained-case observation cannot establish the identity of the other cases drawn from an unverified mixed container.",
+      "reason": "One retained-case observation accounts for that case but cannot establish the identity of the other cases drawn from an unverified mixed container.",
       "expected": {
         "shipment_id": "S-300",
         "status": "POSSIBLE_INCLUSION",
         "min": 0,
-        "max": 5
+        "max": 4
       }
     },
     {

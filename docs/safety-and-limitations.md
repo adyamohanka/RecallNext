@@ -22,7 +22,9 @@ holds, release decisions, notifications and regulatory procedures.
   reassessment; an older pending proposal cannot cross a version boundary.
 - Retraction rebuilds the result from the original scenarios and remaining
   active evidence.
-- One observed case cannot establish every case in a mixed container.
+- One observed case can tighten that shipment by one case but cannot establish
+  every case in a mixed container; a lot incompatible with the target shipment
+  is rejected before review.
 
 ## Interpretation
 

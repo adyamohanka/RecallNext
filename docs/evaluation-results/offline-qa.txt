@@ -19,7 +19,7 @@ PASS
 
 Python, workflow and API tests
 $ python -m pytest -q
-74 passed, 1 warning in 12.14s
+74 passed, 1 warning in 12.03s
 Warning: Starlette TestClient reports a deprecated AnyIO alias in the installed
 dependency; application tests pass.
 

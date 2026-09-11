@@ -113,7 +113,7 @@ def test_one_case_scan_does_not_clear_a_mixed_container():
     result = workflow.accept_evidence(evidence["evidence_id"], "QA reviewer", 1)
     actual = decision(workflow, expected["shipment_id"])
 
-    assert result["decision_diff"] == []
+    assert result["decision_diff"]
     assert actual["status"] == expected["status"]
     assert actual["min_recalled_cases"] == expected["min"]
     assert actual["max_recalled_cases"] == expected["max"]

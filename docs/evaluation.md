@@ -58,7 +58,8 @@ The offline suite covers:
   configured enumeration limits;
 - missing required source coverage and duplicate inventory identifiers;
 - source-qualified lot identity when two suppliers reuse one lot code;
-- mixed-container single-case evidence that cannot clear the remaining cases;
+- mixed-container single-case evidence that tightens only the observed case and
+  cannot clear the remaining cases;
 - incompatible accepted label and pick-log evidence producing `CONFLICT` and
   `UNRESOLVED`;
 - rejected and unavailable evidence producing no narrowing;
