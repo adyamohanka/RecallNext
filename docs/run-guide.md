@@ -2,7 +2,7 @@
 
 ## Application demo
 
-Tested project targets are Python 3.10 or newer, Node.js 20.19+ or 22.12+, and pnpm 11. The committed web flow uses labelled synthetic CSV data and does not require a database credential or LLM key.
+Tested project targets are Python 3.10 or newer, Node.js 24+, and pnpm 11. The committed web flow uses labelled synthetic CSV data and does not require a database credential or LLM key.
 
 ```bash
 git clone https://github.com/harinidev1507/RecallNext.git

@@ -26,7 +26,7 @@ The integrated web application currently starts in `SYNTHETIC_FIXTURE` mode and 
 
 ## Quick start
 
-Prerequisites: Python 3.10+, Node.js 20.19+ or 22.12+, and pnpm 11. From the repository root:
+Prerequisites: Python 3.10+, Node.js 24+, and pnpm 11. From the repository root:
 
 ```bash
 python3 -m venv .venv
