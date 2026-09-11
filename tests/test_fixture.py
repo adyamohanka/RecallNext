@@ -22,6 +22,9 @@ def test_fixture_has_required_ambiguity_and_conservation():
     assert sum(int(row["quantity_cases"]) for row in shipments) == 30
     assert sum(not row["lot_id"] for row in containers) == 2
     assert sum(not row["pick_record_id"] for row in mappings) == 2
+    assert {row["source_system"] for row in fixture["required_source_system"]} == {
+        row["source_system"] for row in fixture["source_coverage"]
+    }
 
     same_code = [row for row in lots if row["lot_code"] == "REC-2026-01"]
     assert {row["lot_source_id"] for row in same_code} == {"FARM-A", "FARM-B"}

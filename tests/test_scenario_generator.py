@@ -12,6 +12,7 @@ def inputs():
             "shipment_id": shipment,
             "container_id": shipment,
             "lot_id": lot,
+            "group_quantity_cases": 1,
             "min_quantity_cases": 0,
             "max_quantity_cases": 1,
         }
@@ -34,3 +35,60 @@ def test_limit_never_returns_a_partial_universe():
     assert result["candidate_allocations"] == []
     assert result["candidate_universe_complete"] is False
     assert result["solver_status"] == "LIMIT_REACHED"
+
+
+def test_group_demand_uses_pick_quantity_not_largest_lot_cap():
+    result = generate_feasible_scenarios(
+        [
+            {
+                "shipment_id": "S1",
+                "container_id": "C1",
+                "lot_id": "L1",
+                "group_quantity_cases": 10,
+                "min_quantity_cases": 0,
+                "max_quantity_cases": 6,
+            },
+            {
+                "shipment_id": "S1",
+                "container_id": "C1",
+                "lot_id": "L2",
+                "group_quantity_cases": 10,
+                "min_quantity_cases": 0,
+                "max_quantity_cases": 4,
+            },
+        ],
+        [{"shipment_id": "S1", "quantity_cases": 10}],
+        [
+            {"lot_id": "L1", "quantity_cases": 6},
+            {"lot_id": "L2", "quantity_cases": 4},
+        ],
+        candidate_universe_complete=True,
+    )
+    assert result["solver_status"] == "SUCCESS"
+    assert result["candidate_allocations"] == [
+        [
+            {
+                "shipment_id": "S1",
+                "container_id": "C1",
+                "lot_id": "L1",
+                "quantity_cases": 6,
+            },
+            {
+                "shipment_id": "S1",
+                "container_id": "C1",
+                "lot_id": "L2",
+                "quantity_cases": 4,
+            },
+        ]
+    ]
+
+
+def test_missing_group_quantity_fails_closed():
+    edges, shipments, lots = inputs()
+    del edges[0]["group_quantity_cases"]
+    result = generate_feasible_scenarios(
+        edges, shipments, lots, candidate_universe_complete=True
+    )
+    assert result["solver_status"] == "INVALID_CANDIDATE_EDGE"
+    assert result["candidate_allocations"] == []
+    assert result["candidate_universe_complete"] is False

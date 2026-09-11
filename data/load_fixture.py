@@ -33,6 +33,7 @@ TABLE_SPECS = (
     TableSpec("shipment", "SHIPMENT"),
     TableSpec("shipment_container", "SHIPMENT_CONTAINER"),
     TableSpec("event", "EVENT"),
+    TableSpec("required_source_system", "REQUIRED_SOURCE_SYSTEM"),
     TableSpec("source_coverage", "SOURCE_COVERAGE"),
     TableSpec("evidence_action", "EVIDENCE_ACTION"),
     TableSpec("action_shipment", "ACTION_SHIPMENT"),
@@ -185,6 +186,11 @@ def remove_demo_fixture(
     )
     connection.execute(
         "DELETE FROM RECALLNEXT.SOURCE_COVERAGE WHERE INCIDENT_ID = {incident_id}",
+        {"incident_id": incident_id},
+    )
+    connection.execute(
+        "DELETE FROM RECALLNEXT.REQUIRED_SOURCE_SYSTEM "
+        "WHERE INCIDENT_ID = {incident_id}",
         {"incident_id": incident_id},
     )
     connection.execute(

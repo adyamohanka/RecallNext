@@ -67,6 +67,8 @@ def generate_feasible_scenarios(
         for item in lots
     }
     groups: dict[tuple[str, str], list[tuple[str, int, int]]] = defaultdict(list)
+    group_targets: dict[tuple[str, str], int] = {}
+    group_lots: set[tuple[str, str, str]] = set()
     for edge in candidate_edges:
         shipment_id = str(edge["shipment_id"])
         container_id = str(edge.get("container_id", "UNSPECIFIED"))
@@ -77,6 +79,23 @@ def generate_feasible_scenarios(
                 "solver_status": "INVALID_CANDIDATE_EDGE",
                 "candidate_universe_complete": False,
             }
+        edge_identity = (shipment_id, container_id, lot_id)
+        if edge_identity in group_lots or "group_quantity_cases" not in edge:
+            return {
+                "candidate_allocations": [],
+                "solver_status": "INVALID_CANDIDATE_EDGE",
+                "candidate_universe_complete": False,
+            }
+        group_lots.add(edge_identity)
+        target = _integer(edge["group_quantity_cases"], "group quantity")
+        key = (shipment_id, container_id)
+        if key in group_targets and group_targets[key] != target:
+            return {
+                "candidate_allocations": [],
+                "solver_status": "INVALID_CANDIDATE_EDGE",
+                "candidate_universe_complete": False,
+            }
+        group_targets[key] = target
         groups[(shipment_id, container_id)].append(
             (
                 lot_id,
@@ -96,7 +115,7 @@ def generate_feasible_scenarios(
     group_totals: dict[str, int] = defaultdict(int)
     for key in sorted(groups):
         bounds = sorted(groups[key])
-        target = max(maximum for _, _, maximum in bounds)
+        target = group_targets[key]
         group_totals[key[0]] += target
         allocations = _compositions(bounds, target)
         if not allocations:

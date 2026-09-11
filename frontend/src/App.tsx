@@ -56,12 +56,17 @@ export default function App() {
   useEffect(() => { load().catch((reason) => setError(reason.message)); }, [load]);
   useEffect(() => {
     if (!selected) return;
-    json<{ proposed_fact: object }>(`/api/incidents/${INCIDENT_ID}/evidence-actions/${selected.action_id}/example-fact`)
-      .then((data) => setFact(JSON.stringify(data.proposed_fact, null, 2)))
-      .catch((reason) => setError(reason.message));
+    const controller = new AbortController();
+    setFact("{}");
     setSource(sourceFor(selected));
+    json<{ proposed_fact: object }>(`/api/incidents/${INCIDENT_ID}/evidence-actions/${selected.action_id}/example-fact`, { signal: controller.signal })
+      .then((data) => setFact(JSON.stringify(data.proposed_fact, null, 2)))
+      .catch((reason) => {
+        if (!(reason instanceof DOMException && reason.name === "AbortError")) setError(reason.message);
+      });
     setEvidenceId(null);
     setMessage(null);
+    return () => controller.abort();
   }, [selected?.action_id]);
 
   const openCases = useMemo(() => decisions.filter((item) => item.status === "POSSIBLE_INCLUSION" || item.status === "UNRESOLVED").reduce((sum, item) => sum + item.held_cases, 0), [decisions]);

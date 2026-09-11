@@ -56,9 +56,9 @@ def test_stale_review_returns_conflict():
                 "action_id": "ACT-MANIFEST-S200",
                 "source_reference": "synthetic/manifest.json",
                 "proposed_fact": {
-                    "fact_type": "observed_case",
-                    "container_id": "C-200",
-                    "lot_id": "FARM-A:GOOD-2026-01",
+                    "fact_type": "shipment_allocation",
+                    "shipment_id": "S-200",
+                    "allocations": {"FARM-A:REC-2026-01": 5},
                 },
                 "content_hash": "fedcba9876543210",
                 "review_status": "PENDING_REVIEW",
@@ -71,18 +71,55 @@ def test_stale_review_returns_conflict():
         assert response.status_code == 409
 
 
+def test_malformed_or_action_mismatched_fact_is_rejected_before_review():
+    with TestClient(create_app()) as client:
+        base = {
+            "action_id": "ACT-MANIFEST-S200",
+            "source_reference": "synthetic/manifest.json",
+            "content_hash": "invalid001234567",
+            "review_status": "PENDING_REVIEW",
+        }
+        malformed = client.post(
+            "/api/incidents/INC-DEMO-001/evidence",
+            json={
+                **base,
+                "proposed_fact": {
+                    "fact_type": "shipment_allocation",
+                    "shipment_id": "S-200",
+                    "allocations": {"FARM-A:REC-2026-01": "five"},
+                },
+            },
+        )
+        assert malformed.status_code == 422
+
+        mismatched = client.post(
+            "/api/incidents/INC-DEMO-001/evidence",
+            json={
+                **base,
+                "content_hash": "invalid002345678",
+                "proposed_fact": {
+                    "fact_type": "homogeneous_container",
+                    "container_id": "C-100",
+                    "lot_id": "FARM-A:REC-2026-01",
+                    "homogeneity_verified": True,
+                },
+            },
+        )
+        assert mismatched.status_code == 422
+
+
 def test_human_rejection_keeps_current_version():
     with TestClient(create_app()) as client:
         proposed = client.post(
             "/api/incidents/INC-DEMO-001/evidence",
             json={
-                "action_id": "ACT-MANIFEST-S200",
-                "source_reference": "synthetic/manifest.json",
-                "proposed_fact": {
-                    "fact_type": "observed_case",
-                    "shipment_id": "S-200",
-                    "lot_id": "FARM-A:GOOD-2026-01",
-                },
+                    "action_id": "ACT-MANIFEST-S200",
+                    "source_reference": "synthetic/manifest.json",
+                    "proposed_fact": {
+                        "fact_type": "shipment_allocation",
+                        "shipment_id": "S-200",
+                        "allocations": {"FARM-A:GOOD-2026-01": 5},
+                    },
                 "content_hash": "reject0012345678",
                 "review_status": "PENDING_REVIEW",
             },

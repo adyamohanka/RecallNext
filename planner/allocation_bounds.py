@@ -132,7 +132,12 @@ def classify_shipments(
     except (TypeError, ValueError):
         return _unresolved_results(shipment_rows, assumptions_dict, "INVALID_SCENARIO")
 
-    recalled = {str(lot_id) for lot_id in recalled_lot_ids}
+    known_lot_ids = {_identifier(lot, "lot_id") for lot in lot_rows}
+    recalled = {str(lot_id).strip() for lot_id in recalled_lot_ids}
+    if not recalled or "" in recalled or not recalled.issubset(known_lot_ids):
+        return _unresolved_results(
+            shipment_rows, assumptions_dict, "INVALID_RECALLED_LOT_REFERENCE"
+        )
     results: list[dict[str, Any]] = []
     for shipment in shipment_rows:
         shipment_id = _identifier(shipment, "shipment_id")

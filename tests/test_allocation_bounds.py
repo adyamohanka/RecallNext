@@ -81,6 +81,13 @@ def test_missing_coverage_timeout_and_empty_universe_are_unresolved():
         assert all(item["status"] == UNRESOLVED for item in result)
 
 
+def test_unknown_or_empty_recalled_lot_reference_is_unresolved():
+    for recalled in ([], ["SOURCE-A:TYPO"]):
+        result = classify_shipments(LOTS, SHIPMENTS, [scenario(0)], recalled, SUCCESS)
+        assert all(item["status"] == UNRESOLVED for item in result)
+        assert result[0]["solver_status"] == "INVALID_RECALLED_LOT_REFERENCE"
+
+
 def test_incomplete_or_unbalanced_scenario_is_unresolved():
     incomplete = [
         [{"shipment_id": "S-1", "lot_id": "SOURCE-A:RECALLED", "quantity_cases": 10}]

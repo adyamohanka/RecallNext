@@ -143,11 +143,117 @@ class RecallWorkflow:
                         "shipment_id": mapping["shipment_id"],
                         "container_id": mapping["container_id"],
                         "lot_id": lot["lot_id"],
+                        "group_quantity_cases": pick_quantity,
                         "min_quantity_cases": pick_quantity if known else 0,
                         "max_quantity_cases": min(pick_quantity, lot["quantity_cases"]),
                     }
                 )
         return edges
+
+    @staticmethod
+    def _fact_quantity_map(value: object, field: str) -> dict[str, int]:
+        if not isinstance(value, dict) or not value:
+            raise WorkflowError(f"{field} must be a non-empty object")
+        result: dict[str, int] = {}
+        for lot_id, quantity in value.items():
+            if not isinstance(lot_id, str) or not lot_id.strip():
+                raise WorkflowError(f"{field} lot IDs must be non-empty strings")
+            if (
+                not isinstance(quantity, int)
+                or isinstance(quantity, bool)
+                or quantity <= 0
+            ):
+                raise WorkflowError(f"{field} quantities must be positive integers")
+            result[lot_id] = quantity
+        return result
+
+    def _validate_fact(self, action_id: str, fact: object) -> None:
+        action = self._actions_by_id.get(action_id)
+        if action is None:
+            raise WorkflowError("unknown action_id")
+        if not isinstance(fact, dict):
+            raise WorkflowError("proposed_fact must be an object")
+
+        expected_type = {
+            "DISPATCH_MANIFEST_LOOKUP": "shipment_allocation",
+            "LABEL_LOOKUP": "homogeneous_container",
+            "PICK_LOG_LOOKUP": "container_allocation",
+            "PHYSICAL_SCAN": "observed_case",
+        }.get(action["action_type"])
+        if fact.get("fact_type") != expected_type:
+            raise WorkflowError(
+                f"{action['action_type']} requires fact_type {expected_type!r}"
+            )
+
+        known_lots = {lot["lot_id"] for lot in self.lots}
+        target = action["target_id"]
+        if expected_type == "shipment_allocation":
+            if fact.get("shipment_id") != target or target not in self._shipments_by_id:
+                raise WorkflowError("shipment fact target does not match the action")
+            allocations = self._fact_quantity_map(
+                fact.get("allocations"), "allocations"
+            )
+            if not set(allocations).issubset(known_lots):
+                raise WorkflowError("allocations contain an unknown lot_id")
+            if (
+                sum(allocations.values())
+                != self._shipments_by_id[target]["quantity_cases"]
+            ):
+                raise WorkflowError("allocations must equal the shipment quantity")
+            return
+
+        if expected_type == "homogeneous_container":
+            if (
+                fact.get("container_id") != target
+                or target not in self._container_by_id
+            ):
+                raise WorkflowError("container fact target does not match the action")
+            if fact.get("lot_id") not in known_lots:
+                raise WorkflowError("container fact contains an unknown lot_id")
+            if fact.get("homogeneity_verified") is not True:
+                raise WorkflowError(
+                    "homogeneous_container requires verified homogeneity"
+                )
+            return
+
+        if expected_type == "container_allocation":
+            if (
+                fact.get("container_id") != target
+                or target not in self._container_by_id
+            ):
+                raise WorkflowError("container fact target does not match the action")
+            raw_shipments = fact.get("shipment_allocations")
+            if not isinstance(raw_shipments, dict):
+                raise WorkflowError("shipment_allocations must be an object")
+            expected_picks = {
+                row["shipment_id"]: row["pick_quantity_cases"]
+                for row in self.shipment_containers
+                if row["container_id"] == target
+            }
+            if set(raw_shipments) != set(expected_picks):
+                raise WorkflowError(
+                    "shipment_allocations must cover every shipment for the container"
+                )
+            for shipment_id, raw_allocations in raw_shipments.items():
+                allocations = self._fact_quantity_map(
+                    raw_allocations, f"shipment_allocations.{shipment_id}"
+                )
+                if not set(allocations).issubset(known_lots):
+                    raise WorkflowError(
+                        "shipment_allocations contain an unknown lot_id"
+                    )
+                if sum(allocations.values()) != expected_picks[shipment_id]:
+                    raise WorkflowError(
+                        "shipment allocation must equal its container pick quantity"
+                    )
+            return
+
+        if fact.get("shipment_id") != target or target not in self._shipments_by_id:
+            raise WorkflowError("observed case target does not match the action")
+        if fact.get("lot_id") not in known_lots:
+            raise WorkflowError("observed case contains an unknown lot_id")
+        if fact.get("scope") != "SINGLE_CASE_ONLY":
+            raise WorkflowError("observed cases must use SINGLE_CASE_ONLY scope")
 
     def _version(self, version: int | None = None) -> dict[str, Any]:
         selected = self.current_version if version is None else version
@@ -376,8 +482,7 @@ class RecallWorkflow:
 
     def submit_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
-            if payload["action_id"] not in self._actions_by_id:
-                raise WorkflowError("unknown action_id")
+            self._validate_fact(payload["action_id"], payload["proposed_fact"])
             duplicate = next(
                 (
                     item
@@ -417,6 +522,7 @@ class RecallWorkflow:
                 raise WorkflowError("evidence does not exist")
             if evidence["status"] != "PENDING_REVIEW":
                 raise ConflictError(f"evidence is already {evidence['status']}")
+            self._validate_fact(evidence["action_id"], evidence["proposed_fact"])
             evidence.update(
                 {
                     "status": "REJECTED",
@@ -444,6 +550,7 @@ class RecallWorkflow:
                 raise WorkflowError("evidence does not exist")
             if evidence["status"] != "PENDING_REVIEW":
                 raise ConflictError(f"evidence is already {evidence['status']}")
+            self._validate_fact(evidence["action_id"], evidence["proposed_fact"])
             before = self._version()
             filtered = self._apply_fact(before["scenarios"], evidence["proposed_fact"])
             next_version = self.current_version + 1

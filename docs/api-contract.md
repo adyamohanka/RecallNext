@@ -48,4 +48,6 @@ Rejection:
 
 A stale `expected_version` returns 409. Duplicate content hashes return the existing proposal. If an accepted fact eliminates every currently feasible scenario, the new version has solver status `CONFLICT` and every shipment is `UNRESOLVED`.
 
+Before a proposal is stored, the API validates its fact shape, known identifiers, integer quantities, complete allocation totals, and compatibility with the selected evidence action. Invalid or mismatched facts return 422.
+
 The fixed decision statuses are `CONFIRMED_INCLUSION`, `POSSIBLE_INCLUSION`, `EXCLUDED_UNDER_ASSUMPTIONS`, and `UNRESOLVED`. Clients must display text labels in addition to colour.
