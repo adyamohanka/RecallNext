@@ -1,0 +1,24 @@
+{
+  "incident_id": "INC-DEMO-001",
+  "model_version": "planner-v0",
+  "recalled_lot_ids": ["FARM-A:REC-2026-01"],
+  "shipments": [
+    {"shipment_id": "S-100", "quantity_cases": 12},
+    {"shipment_id": "S-200", "quantity_cases": 8}
+  ],
+  "candidate_allocations": [
+    [
+      {"shipment_id": "S-100", "lot_id": "FARM-A:REC-2026-01", "quantity_cases": 12},
+      {"shipment_id": "S-200", "lot_id": "FARM-A:GOOD-2026-01", "quantity_cases": 8}
+    ],
+    [
+      {"shipment_id": "S-100", "lot_id": "FARM-A:GOOD-2026-01", "quantity_cases": 12},
+      {"shipment_id": "S-200", "lot_id": "FARM-A:REC-2026-01", "quantity_cases": 8}
+    ]
+  ],
+  "assumptions": {"candidate_universe_complete": true, "solver_status": "SUCCESS"},
+  "actions": [
+    {"action_id": "ACT-LABEL-C100", "action_type": "LABEL_LOOKUP", "target_id": "C-100", "question": "Which lot was in container C-100?", "estimated_minutes": 4, "availability": "AVAILABLE"},
+    {"action_id": "ACT-MANIFEST-S200", "action_type": "DISPATCH_MANIFEST_LOOKUP", "target_id": "S-200", "question": "Which container left in shipment S-200?", "estimated_minutes": 10, "availability": "AVAILABLE"}
+  ]
+}
