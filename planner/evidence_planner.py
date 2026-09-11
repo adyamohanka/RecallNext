@@ -61,10 +61,12 @@ def _outcome_metrics(current: list[Any], outcome: Mapping[str, Any]) -> dict[str
         if _value(after, "status") == CONFIRMED_INCLUSION:
             confirmed += changed_cases
 
+    # Outcome payloads may report only changed shipments. Omitted shipments
+    # retain their previous state; dropping them would undercount uncertainty.
     remaining = sum(
-        int(_value(decision, "held_cases", 0))
-        for decision in future_by_shipment.values()
-        if _value(decision, "status") not in RESOLVED_STATUSES
+        int(_value(future_by_shipment.get(shipment_id, before), "held_cases", 0))
+        for shipment_id, before in current_by_shipment.items()
+        if _value(future_by_shipment.get(shipment_id, before), "status") not in RESOLVED_STATUSES
     )
     return {
         "resolved_cases": resolved,
@@ -80,10 +82,12 @@ def _is_dominated(candidate: dict[str, Any], competitors: list[dict[str, Any]]) 
             continue
         no_worse = (
             other["worst_case_resolved_cases"] >= candidate["worst_case_resolved_cases"]
+            and other["conditional_best_case_resolved_cases"] >= candidate["conditional_best_case_resolved_cases"]
             and other["estimated_minutes"] <= candidate["estimated_minutes"]
         )
         strictly_better = (
             other["worst_case_resolved_cases"] > candidate["worst_case_resolved_cases"]
+            or other["conditional_best_case_resolved_cases"] > candidate["conditional_best_case_resolved_cases"]
             or other["estimated_minutes"] < candidate["estimated_minutes"]
         )
         if no_worse and strictly_better:

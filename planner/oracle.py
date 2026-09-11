@@ -5,7 +5,7 @@ from __future__ import annotations
 from itertools import product
 from typing import Any
 
-from .allocation_bounds import classify_shipments
+from .models import CONFIRMED_INCLUSION, EXCLUDED_UNDER_ASSUMPTIONS, POSSIBLE_INCLUSION
 
 
 def enumerate_binary_allocations(
@@ -37,9 +37,44 @@ def enumerate_binary_allocations(
 def oracle_classify(
     shipments: list[dict[str, Any]], lot_ids: list[str], quantities: dict[str, int], recalled_lot_ids: list[str]
 ) -> list[dict[str, Any]]:
-    """Classify an exhaustive tiny candidate universe using the public planner."""
+    """Independently classify an exhaustive tiny candidate universe.
+
+    This intentionally does not invoke production classification: it is the
+    oracle used to detect a drift in the production bounds implementation.
+    """
 
     scenarios = enumerate_binary_allocations(
         [shipment["shipment_id"] for shipment in shipments], lot_ids, quantities
     )
-    return classify_shipments([], shipments, scenarios, recalled_lot_ids)
+    recalled = set(recalled_lot_ids)
+    decisions: list[dict[str, Any]] = []
+    for shipment in shipments:
+        shipment_id = shipment["shipment_id"]
+        totals = [
+            sum(
+                row["quantity_cases"]
+                for row in scenario
+                if row["shipment_id"] == shipment_id and row["lot_id"] in recalled
+            )
+            for scenario in scenarios
+        ]
+        minimum, maximum = min(totals), max(totals)
+        status = (
+            CONFIRMED_INCLUSION
+            if minimum > 0
+            else POSSIBLE_INCLUSION
+            if maximum > 0
+            else EXCLUDED_UNDER_ASSUMPTIONS
+        )
+        decisions.append(
+            {
+                "shipment_id": shipment_id,
+                "min_recalled_cases": minimum,
+                "max_recalled_cases": maximum,
+                "held_cases": shipment["quantity_cases"],
+                "status": status,
+                "solver_status": "SUCCESS",
+                "assumptions": {},
+            }
+        )
+    return decisions
