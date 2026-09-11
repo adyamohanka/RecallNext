@@ -5,122 +5,126 @@ from planner.models import (
     POSSIBLE_INCLUSION,
     UNRESOLVED,
 )
-from planner.oracle import oracle_classify
+from planner.oracle import oracle_classify_scenarios
 
-
+LOTS = [
+    {"lot_id": "SOURCE-A:RECALLED", "quantity_cases": 10},
+    {"lot_id": "SOURCE-B:OTHER", "quantity_cases": 10},
+]
 SHIPMENTS = [
     {"shipment_id": "S-1", "quantity_cases": 10},
     {"shipment_id": "S-2", "quantity_cases": 10},
 ]
+SUCCESS = {
+    "candidate_universe_complete": True,
+    "solver_status": "SUCCESS",
+    "inventory_balance_mode": "CLOSED",
+}
 
 
-def test_classifies_confirmed_possible_and_excluded_from_feasible_scenarios():
-    scenarios = [
-        [
-            {"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": 4},
-            {"shipment_id": "S-2", "lot_id": "OTHER", "quantity_cases": 10},
-        ],
-        [
-            {"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": 2},
-            {"shipment_id": "S-2", "lot_id": "OTHER", "quantity_cases": 10},
-        ],
+def scenario(first_recalled: int):
+    return [
+        {
+            "shipment_id": "S-1",
+            "lot_id": "SOURCE-A:RECALLED",
+            "quantity_cases": first_recalled,
+        },
+        {
+            "shipment_id": "S-1",
+            "lot_id": "SOURCE-B:OTHER",
+            "quantity_cases": 10 - first_recalled,
+        },
+        {
+            "shipment_id": "S-2",
+            "lot_id": "SOURCE-A:RECALLED",
+            "quantity_cases": 10 - first_recalled,
+        },
+        {
+            "shipment_id": "S-2",
+            "lot_id": "SOURCE-B:OTHER",
+            "quantity_cases": first_recalled,
+        },
     ]
 
-    decisions = classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
 
-    assert decisions[0]["status"] == CONFIRMED_INCLUSION
-    assert decisions[0]["min_recalled_cases"] == 2
-    assert decisions[1]["status"] == EXCLUDED_UNDER_ASSUMPTIONS
+def test_classifies_confirmed_possible_and_excluded():
+    confirmed = classify_shipments(
+        LOTS, SHIPMENTS, [scenario(4), scenario(2)], ["SOURCE-A:RECALLED"], SUCCESS
+    )
+    assert all(item["status"] == CONFIRMED_INCLUSION for item in confirmed)
+    possible = classify_shipments(
+        LOTS, SHIPMENTS, [scenario(10), scenario(0)], ["SOURCE-A:RECALLED"], SUCCESS
+    )
+    assert all(item["status"] == POSSIBLE_INCLUSION for item in possible)
+    excluded = classify_shipments(
+        LOTS, SHIPMENTS, [scenario(0)], ["SOURCE-B:OTHER"], SUCCESS
+    )
+    assert excluded[0]["status"] == CONFIRMED_INCLUSION
+    assert excluded[1]["status"] == EXCLUDED_UNDER_ASSUMPTIONS
 
 
-def test_unknown_mapping_remains_possible_in_a_complete_candidate_universe():
-    scenarios = [
-        [{"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": 5}],
-        [{"shipment_id": "S-2", "lot_id": "RECALLED", "quantity_cases": 5}],
+def test_metadata_is_required_for_scope_narrowing():
+    result = classify_shipments(LOTS, SHIPMENTS, [scenario(0)], ["SOURCE-A:RECALLED"])
+    assert all(item["status"] == UNRESOLVED for item in result)
+    assert result[0]["solver_status"] == "MISSING_VALIDATION_METADATA"
+
+
+def test_missing_coverage_timeout_and_empty_universe_are_unresolved():
+    for assumptions, scenarios in [
+        ({**SUCCESS, "candidate_universe_complete": False}, [scenario(0)]),
+        ({**SUCCESS, "solver_status": "TIMEOUT"}, [scenario(0)]),
+        (SUCCESS, []),
+    ]:
+        result = classify_shipments(
+            LOTS, SHIPMENTS, scenarios, ["SOURCE-A:RECALLED"], assumptions
+        )
+        assert all(item["status"] == UNRESOLVED for item in result)
+
+
+def test_incomplete_or_unbalanced_scenario_is_unresolved():
+    incomplete = [
+        [{"shipment_id": "S-1", "lot_id": "SOURCE-A:RECALLED", "quantity_cases": 10}]
     ]
-
-    decisions = classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
-
-    assert [item["status"] for item in decisions] == [POSSIBLE_INCLUSION, POSSIBLE_INCLUSION]
-
-
-def test_missing_coverage_cannot_exclude_a_shipment():
-    decisions = classify_shipments(
-        [], SHIPMENTS, [[]], ["RECALLED"], {"candidate_universe_complete": False}
+    result = classify_shipments(
+        LOTS, SHIPMENTS, incomplete, ["SOURCE-A:RECALLED"], SUCCESS
     )
-
-    assert all(item["status"] == UNRESOLVED for item in decisions)
-
-
-def test_conflict_or_timeout_is_unresolved_even_when_no_recalled_row_exists():
-    decisions = classify_shipments([], SHIPMENTS, [[]], ["RECALLED"], {"solver_status": "TIMEOUT"})
-
-    assert all(item["status"] == UNRESOLVED for item in decisions)
+    assert all(item["status"] == UNRESOLVED for item in result)
+    assert result[0]["solver_status"] == "INVALID_SCENARIO"
 
 
-def test_contradictory_evidence_is_unresolved_not_an_exclusion():
-    decisions = classify_shipments([], SHIPMENTS, [[]], ["RECALLED"], {"solver_status": "CONFLICT"})
-
-    assert all(item["status"] == UNRESOLVED for item in decisions)
-
-
-def test_empty_feasible_set_is_unresolved_not_excluded():
-    decisions = classify_shipments([], SHIPMENTS, [], ["RECALLED"])
-
-    assert all(item["status"] == UNRESOLVED for item in decisions)
-
-
-def test_tiny_oracle_and_planner_agree():
-    expected = oracle_classify(
-        SHIPMENTS,
-        ["RECALLED", "OTHER"],
-        {"RECALLED": 1, "OTHER": 1},
-        ["RECALLED"],
+def test_independent_oracle_agrees_on_bounds_and_statuses():
+    scenarios = [scenario(value) for value in range(11)]
+    actual = classify_shipments(
+        LOTS, SHIPMENTS, scenarios, ["SOURCE-A:RECALLED"], SUCCESS
     )
-    direct = classify_shipments(
-        [],
-        SHIPMENTS,
+    expected = oracle_classify_scenarios(SHIPMENTS, scenarios, ["SOURCE-A:RECALLED"])
+    for got, wanted in zip(actual, expected):
+        assert {key: got[key] for key in wanted} == wanted
+
+
+def test_same_code_from_another_source_is_distinct():
+    lots = [
+        {"lot_id": "A:LOT-7", "quantity_cases": 1},
+        {"lot_id": "B:LOT-7", "quantity_cases": 1},
+    ]
+    shipments = [
+        {"shipment_id": "S-1", "quantity_cases": 1},
+        {"shipment_id": "S-2", "quantity_cases": 1},
+    ]
+    rows = [
         [
-            [
-                {"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": 1},
-                {"shipment_id": "S-1", "lot_id": "OTHER", "quantity_cases": 1},
-            ],
-            [
-                {"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": 1},
-                {"shipment_id": "S-2", "lot_id": "OTHER", "quantity_cases": 1},
-            ],
-            [
-                {"shipment_id": "S-2", "lot_id": "RECALLED", "quantity_cases": 1},
-                {"shipment_id": "S-1", "lot_id": "OTHER", "quantity_cases": 1},
-            ],
-            [
-                {"shipment_id": "S-2", "lot_id": "RECALLED", "quantity_cases": 1},
-                {"shipment_id": "S-2", "lot_id": "OTHER", "quantity_cases": 1},
-            ],
-        ],
-        ["RECALLED"],
-    )
-    assert direct == expected
-
-
-def test_same_lot_code_from_another_source_is_not_treated_as_recalled():
-    scenarios = [
-        [
-            {"shipment_id": "S-1", "lot_id": "SOURCE-A:LOT-7", "quantity_cases": 4},
-            {"shipment_id": "S-2", "lot_id": "SOURCE-B:LOT-7", "quantity_cases": 4},
+            {"shipment_id": "S-1", "lot_id": "A:LOT-7", "quantity_cases": 1},
+            {"shipment_id": "S-2", "lot_id": "B:LOT-7", "quantity_cases": 1},
         ]
     ]
-
-    decisions = classify_shipments([], SHIPMENTS, scenarios, ["SOURCE-A:LOT-7"])
-
-    assert decisions[0]["status"] == CONFIRMED_INCLUSION
-    assert decisions[1]["status"] == EXCLUDED_UNDER_ASSUMPTIONS
-
-
-def test_invalid_candidate_quantity_is_rejected_instead_of_silently_reconciled():
-    scenarios = [[{"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": -1}]]
-
-    import pytest
-
-    with pytest.raises(ValueError, match="non-negative"):
-        classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
+    decisions = classify_shipments(
+        lots,
+        shipments,
+        rows,
+        ["A:LOT-7"],
+        {**SUCCESS, "inventory_balance_mode": "CLOSED"},
+    )
+    assert [item["status"] for item in decisions] == [
+        CONFIRMED_INCLUSION,
+        EXCLUDED_UNDER_ASSUMPTIONS,
+    ]

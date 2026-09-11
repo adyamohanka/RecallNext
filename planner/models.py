@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-
 CONFIRMED_INCLUSION = "CONFIRMED_INCLUSION"
 POSSIBLE_INCLUSION = "POSSIBLE_INCLUSION"
 EXCLUDED_UNDER_ASSUMPTIONS = "EXCLUDED_UNDER_ASSUMPTIONS"
