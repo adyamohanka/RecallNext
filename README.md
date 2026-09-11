@@ -9,10 +9,11 @@ AI-assisted extraction may propose a structured fact. A human must accept it bef
 - deterministic generation of 125 feasible histories for the committed six-shipment fixture;
 - four conservative decision states: `CONFIRMED_INCLUSION`, `POSSIBLE_INCLUSION`, `EXCLUDED_UNDER_ASSUMPTIONS`, and `UNRESOLVED`;
 - outcome-aware evidence ranking, including unavailable outcomes and explicitly conditional benefits;
-- FastAPI endpoints for incident scope, decisions, evidence actions, proposal, acceptance, rejection and decision differences;
+- FastAPI endpoints for incident scope, decisions, evidence actions, proposal, acceptance, rejection, retraction and decision differences;
 - React investigation UI with text-and-colour statuses, source review and version changes;
 - Exasol schema, candidate-generation SQL, fixture loader, persistence services and a smoke check;
-- adversarial checks for invalid scenario coverage, conflicts, stale reviews, source-qualified lot identity and bounded computation.
+- source-coverage and duplicate-inventory gates before scenario generation;
+- adversarial checks for invalid scenario coverage, conflicts, stale reviews, mixed containers, source-qualified lot identity, retraction and bounded computation.
 
 The integrated web application currently starts in `SYNTHETIC_FIXTURE` mode and says so in the health response and UI. Its planner and evidence workflow are real; its data comes directly from the committed CSV fixture. The Exasol loader and smoke path are implemented separately, but still require validation against the team’s Exasol Personal instance. Do not describe the web API as Exasol-backed until that live check passes and the API repository adapter is connected.
 
@@ -23,6 +24,7 @@ The integrated web application currently starts in `SYNTHETIC_FIXTURE` mode and 
 3. Select an action and review the synthetic proposed fact. Saving it does not alter decisions.
 4. Enter a reviewer name and accept it. The API checks the expected incident version, filters feasible histories and creates a decision diff.
 5. Submit an impossible source-qualified allocation to see a conflict create an `UNRESOLVED` version rather than a false exclusion.
+6. Retract accepted evidence through the API to rebuild the incident from the original snapshot and the remaining active evidence.
 
 ## Quick start
 
@@ -35,15 +37,15 @@ python -m pip install -e ".[dev]"
 python -m uvicorn backend.app:app --reload
 ```
 
-In a second terminal:
+In a second terminal, from the repository root:
 
 ```bash
-cd frontend
-pnpm install --frozen-lockfile
-pnpm dev
+pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend dev
 ```
 
-Open <http://127.0.0.1:5173>. Run `python -m pytest -q` and `pnpm build` before committing.
+Open <http://127.0.0.1:5173>. Run `python -m pytest -q` and
+`pnpm --dir frontend build` before committing. The frontend uses pnpm only.
 
 See [docs/run-guide.md](docs/run-guide.md) for Exasol setup, smoke checks and troubleshooting. The API payloads are documented in [docs/api-contract.md](docs/api-contract.md).
 
@@ -73,6 +75,7 @@ Exasol is responsible for relational validation, candidate generation, aggregati
 - A single case scan does not establish the contents of an unverified mixed container.
 - Saving unreviewed evidence never changes a decision.
 - Every acceptance uses an expected incident version to prevent a stale review.
+- Retraction invalidates the affected result and creates a new version.
 - “Excluded under assumptions” is specific to this synthetic recall model. It does not mean safe to consume.
 
 The fixture is synthetic and describes fictional warehouse records. This project is a hackathon decision-support prototype, not regulatory advice, food-safety certification or a production warehouse integration.
@@ -86,6 +89,10 @@ The fixture is synthetic and describes fictional warehouse records. This project
 - `frontend/` — React/TypeScript investigation interface
 - `tests/` — unit, API and adversarial workflow tests
 - `docs/` — run guide, API, architecture, evaluation and safety notes
+
+The measured offline checks and unverified integration work are separated in
+[docs/evaluation.md](docs/evaluation.md). Use
+[docs/release-checklist.md](docs/release-checklist.md) before submission.
 
 ## Team
 

@@ -12,6 +12,12 @@ This is synthetic test data, not a real recall or operational safety record.
 There is no hidden true allocation in these files. Feasible histories must be
 derived from accepted facts and constraints.
 
+The independent QA matrix is stored in
+`tests/fixtures/adversarial_cases.json`. Every required case records the
+expected result and the reason for it, including missing source coverage,
+duplicate inventory, mixed-container scanning, contradictions, solver failure,
+rejection and retraction.
+
 Verify that the committed data still matches the deterministic generator:
 
 ```bash
