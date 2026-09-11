@@ -1,0 +1,5 @@
+action_id,incident_id,incident_version,action_type,target_type,target_id,question,estimated_minutes,availability
+ACT-LABEL-C100,INC-DEMO-001,1,LABEL_LOOKUP,CONTAINER,C-100,Which supplier lot is shown on container C-100?,4,AVAILABLE
+ACT-PICK-C200,INC-DEMO-001,1,PICK_LOG_LOOKUP,CONTAINER,C-200,Which lots contributed to picks from container C-200?,7,AVAILABLE
+ACT-SCAN-C200,INC-DEMO-001,1,PHYSICAL_SCAN,CONTAINER,C-200,What lot code is on a traceable case remaining in C-200?,6,AVAILABLE
+ACT-MANIFEST-S200,INC-DEMO-001,1,DISPATCH_MANIFEST_LOOKUP,SHIPMENT,S-200,Which container and lot appear on shipment S-200's manifest?,10,AVAILABLE

@@ -1,0 +1,1 @@
+"""RecallNext Exasol integration package."""

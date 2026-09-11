@@ -1,0 +1,4 @@
+incident_id,incident_version,source_system,expected_records,received_records,is_complete,issue_detail
+INC-DEMO-001,1,WMS_RECEIPTS,3,3,true,
+INC-DEMO-001,1,WMS_CONTAINERS,3,3,true,
+INC-DEMO-001,1,ERP_DISPATCH,6,6,true,

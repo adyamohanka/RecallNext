@@ -1,0 +1,2 @@
+incident_id,incident_version,snapshot_version,product_id,window_start,window_end,status,created_at
+INC-DEMO-001,1,1,PROD-APPLE,2026-09-07 08:00:00,2026-09-07 18:00:00,OPEN,2026-09-07 08:05:00
