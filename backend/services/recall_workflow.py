@@ -53,26 +53,83 @@ class RecallWorkflow:
         self._evidence: dict[str, dict[str, Any]] = {}
         self._load()
 
+    def _unique_rows(
+        self, rows: list[dict[str, Any]], identifier: str, label: str
+    ) -> list[dict[str, Any]]:
+        unique: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for row in rows:
+            value = str(row.get(identifier, "")).strip()
+            if value in seen:
+                self.data_quality_issues.append(f"DUPLICATE_{label}:{value}")
+                continue
+            seen.add(value)
+            unique.append(row)
+        return unique
+
+    def _coverage_is_complete(self) -> bool:
+        required = {
+            row["source_system"]
+            for row in _read_csv(self.data_directory / "required_source_system.csv")
+        }
+        coverage_rows = _read_csv(self.data_directory / "source_coverage.csv")
+        coverage: dict[str, dict[str, str]] = {}
+        for row in coverage_rows:
+            source = row["source_system"]
+            if source in coverage:
+                self.data_quality_issues.append(f"DUPLICATE_SOURCE_COVERAGE:{source}")
+                continue
+            coverage[source] = row
+        if not required or set(coverage) != required:
+            self.data_quality_issues.append("MISSING_REQUIRED_SOURCE_COVERAGE")
+            return False
+        try:
+            complete = all(
+                row["is_complete"].strip().lower() == "true"
+                and int(row["received_records"]) >= int(row["expected_records"])
+                for row in coverage.values()
+            )
+        except (KeyError, TypeError, ValueError):
+            complete = False
+        if not complete:
+            self.data_quality_issues.append("INCOMPLETE_SOURCE_COVERAGE")
+        return complete
+
     def _load(self) -> None:
+        self.data_quality_issues: list[str] = []
         incident = _read_csv(self.data_directory / "incident.csv")[0]
         self.incident_id = incident["incident_id"]
         self.snapshot_version = int(incident["snapshot_version"])
-        self.lots = _int_rows(
-            _read_csv(self.data_directory / "lot.csv"), ("quantity_cases",)
+        self.lots = self._unique_rows(
+            _int_rows(_read_csv(self.data_directory / "lot.csv"), ("quantity_cases",)),
+            "lot_id",
+            "LOT_ID",
         )
-        self.shipments = _int_rows(
-            _read_csv(self.data_directory / "shipment.csv"), ("quantity_cases",)
+        self.shipments = self._unique_rows(
+            _int_rows(
+                _read_csv(self.data_directory / "shipment.csv"), ("quantity_cases",)
+            ),
+            "shipment_id",
+            "SHIPMENT_ID",
         )
-        self.containers = _int_rows(
-            _read_csv(self.data_directory / "container.csv"), ("quantity_cases",)
+        self.containers = self._unique_rows(
+            _int_rows(
+                _read_csv(self.data_directory / "container.csv"), ("quantity_cases",)
+            ),
+            "container_id",
+            "CONTAINER_ID",
         )
         self.shipment_containers = _int_rows(
             _read_csv(self.data_directory / "shipment_container.csv"),
             ("pick_quantity_cases",),
         )
-        self.actions = _int_rows(
-            _read_csv(self.data_directory / "evidence_action.csv"),
-            ("estimated_minutes",),
+        self.actions = self._unique_rows(
+            _int_rows(
+                _read_csv(self.data_directory / "evidence_action.csv"),
+                ("estimated_minutes",),
+            ),
+            "action_id",
+            "ACTION_ID",
         )
         self.action_shipments = _read_csv(self.data_directory / "action_shipment.csv")
         self.recalled_lot_ids = [
@@ -83,11 +140,14 @@ class RecallWorkflow:
         self._shipments_by_id = {row["shipment_id"]: row for row in self.shipments}
         self._actions_by_id = {row["action_id"]: row for row in self.actions}
         self.candidate_edges = self._build_candidate_edges()
+        candidate_universe_complete = (
+            self._coverage_is_complete() and not self.data_quality_issues
+        )
         generated = generate_feasible_scenarios(
             self.candidate_edges,
             self.shipments,
             self.lots,
-            candidate_universe_complete=True,
+            candidate_universe_complete=candidate_universe_complete,
             closed_inventory=True,
         )
         assumptions = {
@@ -95,6 +155,7 @@ class RecallWorkflow:
             "solver_status": generated["solver_status"],
             "inventory_balance_mode": "CLOSED",
             "synthetic_data": True,
+            "data_quality_issues": list(self.data_quality_issues),
         }
         decisions = classify_shipments(
             self.lots,
@@ -104,6 +165,7 @@ class RecallWorkflow:
             assumptions,
         )
         self.current_version = 1
+        self._base_scenarios = generated["candidate_allocations"]
         self._versions: dict[int, dict[str, Any]] = {
             1: {
                 "version": 1,
@@ -112,6 +174,7 @@ class RecallWorkflow:
                 "solver_status": generated["solver_status"],
                 "assumptions": assumptions,
                 "evidence_id": None,
+                "evidence_references": [],
                 "diagnostics": generated.get("diagnostics", {}),
             }
         }
@@ -284,6 +347,7 @@ class RecallWorkflow:
                 "status_counts": dict(status_counts),
                 "feasible_scenarios": len(state["scenarios"]),
                 "solver_status": state["solver_status"],
+                "data_quality_issues": list(self.data_quality_issues),
             },
             "latest_diff": self.diff(self.current_version - 1, self.current_version)
             if self.current_version > 1
@@ -297,9 +361,7 @@ class RecallWorkflow:
             "version": state["version"],
             "model_version": self.model_version,
             "solver_status": state["solver_status"],
-            "evidence_references": [state["evidence_id"]]
-            if state["evidence_id"]
-            else [],
+            "evidence_references": list(state["evidence_references"]),
             "decisions": state["decisions"],
         }
 
@@ -315,11 +377,9 @@ class RecallWorkflow:
             return [
                 scenario
                 for scenario in scenarios
-                if {
-                    row["lot_id"]: row["quantity_cases"]
-                    for row in scenario
-                    if row["shipment_id"] == shipment_id
-                }
+                if self._allocation_map(
+                    [row for row in scenario if row["shipment_id"] == shipment_id]
+                )
                 == allocations
             ]
         if fact_type == "container_allocation":
@@ -332,12 +392,14 @@ class RecallWorkflow:
                 scenario
                 for scenario in scenarios
                 if {
-                    shipment_id: {
-                        row["lot_id"]: row["quantity_cases"]
-                        for row in scenario
-                        if row["container_id"] == container_id
-                        and row["shipment_id"] == shipment_id
-                    }
+                    shipment_id: self._allocation_map(
+                        [
+                            row
+                            for row in scenario
+                            if row["container_id"] == container_id
+                            and row["shipment_id"] == shipment_id
+                        ]
+                    )
                     for shipment_id in allocations
                 }
                 == allocations
@@ -360,7 +422,10 @@ class RecallWorkflow:
 
     @staticmethod
     def _allocation_map(rows: list[dict[str, Any]]) -> dict[str, int]:
-        return {row["lot_id"]: row["quantity_cases"] for row in rows}
+        allocations: dict[str, int] = defaultdict(int)
+        for row in rows:
+            allocations[row["lot_id"]] += row["quantity_cases"]
+        return dict(allocations)
 
     def _possible_facts(
         self, action: dict[str, Any], scenarios: list[list[dict[str, Any]]]
@@ -522,6 +587,10 @@ class RecallWorkflow:
                 raise WorkflowError("evidence does not exist")
             if evidence["status"] != "PENDING_REVIEW":
                 raise ConflictError(f"evidence is already {evidence['status']}")
+            if evidence["incident_version"] != self.current_version:
+                raise ConflictError(
+                    "evidence was proposed for an earlier incident version"
+                )
             self._validate_fact(evidence["action_id"], evidence["proposed_fact"])
             evidence.update(
                 {
@@ -550,6 +619,10 @@ class RecallWorkflow:
                 raise WorkflowError("evidence does not exist")
             if evidence["status"] != "PENDING_REVIEW":
                 raise ConflictError(f"evidence is already {evidence['status']}")
+            if evidence["incident_version"] != self.current_version:
+                raise ConflictError(
+                    "evidence was proposed for an earlier incident version"
+                )
             self._validate_fact(evidence["action_id"], evidence["proposed_fact"])
             before = self._version()
             filtered = self._apply_fact(before["scenarios"], evidence["proposed_fact"])
@@ -586,6 +659,10 @@ class RecallWorkflow:
                 "solver_status": solver_status,
                 "assumptions": assumptions,
                 "evidence_id": evidence_id,
+                "evidence_references": [
+                    *before["evidence_references"],
+                    evidence_id,
+                ],
                 "diagnostics": {"remaining_feasible_scenarios": len(filtered)},
             }
             self.current_version = next_version
@@ -596,6 +673,96 @@ class RecallWorkflow:
                 "current_version": next_version,
                 "solver_status": solver_status,
                 "decision_diff": self.diff(next_version - 1, next_version),
+            }
+
+    def retract_evidence(
+        self, evidence_id: str, verified_by: str, expected_version: int, reason: str
+    ) -> dict[str, Any]:
+        with self._lock:
+            if expected_version != self.current_version:
+                raise ConflictError(
+                    f"stale incident version: expected {expected_version}, current {self.current_version}"
+                )
+            evidence = self._evidence.get(evidence_id)
+            if evidence is None:
+                raise WorkflowError("evidence does not exist")
+            if evidence["status"] not in {"ACCEPTED", "CONFLICTING"}:
+                raise ConflictError(
+                    f"only accepted or conflicting evidence can be retracted; current status is {evidence['status']}"
+                )
+            reviewed = [
+                item
+                for item in self._evidence.values()
+                if item["status"] in {"ACCEPTED", "CONFLICTING"}
+            ]
+            latest = max(reviewed, key=lambda item: item["accepted_into_version"])
+            if latest["evidence_id"] != evidence_id:
+                raise ConflictError(
+                    "later reviewed evidence must be retracted first in this prototype"
+                )
+
+            previous_status = evidence["status"]
+            evidence.update(
+                {
+                    "status": "RETRACTED",
+                    "previous_status": previous_status,
+                    "retracted_by": verified_by,
+                    "retraction_reason": reason,
+                }
+            )
+            active_evidence = sorted(
+                (
+                    item
+                    for item in self._evidence.values()
+                    if item["status"] == "ACCEPTED"
+                ),
+                key=lambda item: item["accepted_into_version"],
+            )
+            filtered = self._base_scenarios
+            active_references: list[str] = []
+            for item in active_evidence:
+                filtered = self._apply_fact(filtered, item["proposed_fact"])
+                active_references.append(item["evidence_id"])
+
+            initial = self._versions[1]
+            if not filtered:
+                solver_status = (
+                    initial["solver_status"] if not self._base_scenarios else "CONFLICT"
+                )
+            else:
+                solver_status = "SUCCESS"
+            assumptions = {**initial["assumptions"], "solver_status": solver_status}
+            decisions = classify_shipments(
+                self.lots,
+                self.shipments,
+                filtered,
+                self.recalled_lot_ids,
+                assumptions,
+            )
+            next_version = self.current_version + 1
+            evidence["retracted_into_version"] = next_version
+            before_version = self.current_version
+            self._versions[next_version] = {
+                "version": next_version,
+                "scenarios": filtered,
+                "decisions": decisions,
+                "solver_status": solver_status,
+                "assumptions": assumptions,
+                "evidence_id": evidence_id,
+                "evidence_references": [*active_references, evidence_id],
+                "diagnostics": {
+                    "remaining_feasible_scenarios": len(filtered),
+                    "active_evidence_references": active_references,
+                },
+            }
+            self.current_version = next_version
+            return {
+                "evidence": evidence.copy(),
+                "incident_id": self.incident_id,
+                "previous_version": before_version,
+                "current_version": next_version,
+                "solver_status": solver_status,
+                "decision_diff": self.diff(before_version, next_version),
             }
 
     def diff(self, from_version: int, to_version: int) -> list[dict[str, Any]]:

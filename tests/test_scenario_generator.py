@@ -92,3 +92,31 @@ def test_missing_group_quantity_fails_closed():
     assert result["solver_status"] == "INVALID_CANDIDATE_EDGE"
     assert result["candidate_allocations"] == []
     assert result["candidate_universe_complete"] is False
+
+
+def test_duplicate_inventory_identifiers_block_scenario_generation():
+    edges, shipments, lots = inputs()
+
+    duplicate_shipment = generate_feasible_scenarios(
+        edges,
+        [*shipments, shipments[0]],
+        lots,
+        candidate_universe_complete=True,
+    )
+    duplicate_lot = generate_feasible_scenarios(
+        edges,
+        shipments,
+        [*lots, lots[0]],
+        candidate_universe_complete=True,
+    )
+
+    assert duplicate_shipment == {
+        "candidate_allocations": [],
+        "solver_status": "DUPLICATE_SHIPMENT_ID",
+        "candidate_universe_complete": False,
+    }
+    assert duplicate_lot == {
+        "candidate_allocations": [],
+        "solver_status": "DUPLICATE_LOT_ID",
+        "candidate_universe_complete": False,
+    }

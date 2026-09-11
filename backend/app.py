@@ -5,7 +5,12 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.models import EvidenceAcceptance, EvidenceRejection, EvidenceSubmission
+from backend.models import (
+    EvidenceAcceptance,
+    EvidenceRejection,
+    EvidenceRetraction,
+    EvidenceSubmission,
+)
 from backend.services.recall_workflow import (
     ConflictError,
     WorkflowError,
@@ -123,6 +128,23 @@ def create_app() -> FastAPI:
                 rejection.verified_by,
                 rejection.expected_version,
                 rejection.reason,
+            )
+        except ConflictError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except WorkflowError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.post("/api/incidents/{incident_id}/evidence/{evidence_id}/retract")
+    def retract_evidence(
+        incident_id: str, evidence_id: str, retraction: EvidenceRetraction
+    ) -> dict[str, object]:
+        require_incident(incident_id)
+        try:
+            return workflow.retract_evidence(
+                evidence_id,
+                retraction.verified_by,
+                retraction.expected_version,
+                retraction.reason,
             )
         except ConflictError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
