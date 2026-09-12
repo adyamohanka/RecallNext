@@ -38,6 +38,17 @@ actions = rank_actions(decisions, evidence_actions, outcome_scenarios)
 Return `decisions` as the `/decisions` response and `actions` as the
 `/evidence-actions` response. The objects are JSON serializable.
 
+## Evidence-ranking input
+
+Every evidence action must include `action_id`, `action_type`, `target_id`,
+`question`, `estimated_minutes` (positive), and `availability`. Supply a
+complete `outcome_scenarios` mapping keyed by `action_id`. Each outcome has an
+`outcome` value (`VALID`, `UNAVAILABLE`, `ILLEGIBLE`, `CONFLICTING`, or
+`REJECTED`) and a full list of shipment decisions in the same shape returned by
+`classify_shipments`. Never omit a credible outcome to improve a rank. A
+missing scenario receives a conservative zero worst-case score; unavailable,
+illegible, conflicting, rejected, and retracted evidence must not narrow scope.
+
 ## Human review and reassessment
 
 1. Store proposed evidence without changing planner inputs.

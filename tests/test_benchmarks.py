@@ -46,3 +46,16 @@ def test_evaluation_reports_real_synthetic_trace_metrics_without_touching_produc
     assert report["unnecessary_held_cases"] == 0
     assert report["actions"] == 1
     assert report["simulated_minutes"] == 3
+
+
+def test_evaluation_rejects_incomplete_or_duplicate_decision_snapshots():
+    import pytest
+
+    snapshot = [{"shipment_id": "S-1", "held_cases": 1, "status": POSSIBLE_INCLUSION}]
+
+    with pytest.raises(ValueError, match="ground truth"):
+        evaluate_decision_trace([snapshot], [], {}, {})
+    with pytest.raises(ValueError, match="duplicate"):
+        evaluate_decision_trace([snapshot + snapshot], [], {}, {"S-1": 0})
+    with pytest.raises(ValueError, match="cover exactly"):
+        evaluate_decision_trace([snapshot, []], [], {}, {"S-1": 0})

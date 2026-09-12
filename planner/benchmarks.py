@@ -65,6 +65,17 @@ def evaluate_decision_trace(
     snapshots = [list(snapshot) for snapshot in decision_trace]
     if not snapshots:
         raise ValueError("decision_trace must contain at least the initial snapshot")
+    expected_ids = [str(_value(decision, "shipment_id")) for decision in snapshots[0]]
+    if len(set(expected_ids)) != len(expected_ids):
+        raise ValueError("initial decision snapshot contains duplicate shipment IDs")
+    if set(ground_truth_recalled_cases) != set(expected_ids):
+        raise ValueError("ground truth must cover exactly the initial shipment IDs")
+    for snapshot in snapshots:
+        shipment_ids = [str(_value(decision, "shipment_id")) for decision in snapshot]
+        if len(set(shipment_ids)) != len(shipment_ids):
+            raise ValueError("decision snapshot contains duplicate shipment IDs")
+        if set(shipment_ids) != set(expected_ids):
+            raise ValueError("every decision snapshot must cover exactly the initial shipment IDs")
     selected_actions = list(action_ids)
     missing_effort = [action_id for action_id in selected_actions if action_id not in action_minutes]
     if missing_effort:

@@ -72,12 +72,16 @@ def classify_shipments(
     # them. Still, reject a malformed or over-capacity scenario defensively:
     # treating it as evidence would make a false exclusion possible.
     capacities = {_shipment_id(shipment): _quantity(shipment) for shipment in shipment_rows}
-    if not _scenarios_fit_shipments(scenarios, capacities):
+    try:
+        scenarios_fit = _scenarios_fit_shipments(scenarios, capacities)
+    except (AttributeError, TypeError, ValueError):
+        scenarios_fit = False
+    if not scenarios_fit:
         return [
             _unresolved(
                 _shipment_id(shipment),
                 _quantity(shipment),
-                "INFEASIBLE_CANDIDATE_ALLOCATION",
+                "MALFORMED_OR_INFEASIBLE_CANDIDATE_ALLOCATION",
                 assumptions_dict,
             )
             for shipment in shipment_rows

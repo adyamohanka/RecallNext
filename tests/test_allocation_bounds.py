@@ -76,7 +76,7 @@ def test_infeasible_quantity_balance_is_unresolved_not_a_false_exclusion():
     decisions = classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
 
     assert all(item["status"] == UNRESOLVED for item in decisions)
-    assert all(item["solver_status"] == "INFEASIBLE_CANDIDATE_ALLOCATION" for item in decisions)
+    assert all(item["solver_status"] == "MALFORMED_OR_INFEASIBLE_CANDIDATE_ALLOCATION" for item in decisions)
 
 
 def test_duplicate_candidate_rows_that_overfill_a_shipment_are_unresolved():
@@ -165,10 +165,10 @@ def test_same_lot_code_from_another_source_is_not_treated_as_recalled():
     assert decisions[1]["status"] == EXCLUDED_UNDER_ASSUMPTIONS
 
 
-def test_invalid_candidate_quantity_is_rejected_instead_of_silently_reconciled():
+def test_malformed_candidate_quantity_is_unresolved_instead_of_raising_or_reconciling():
     scenarios = [[{"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": -1}]]
 
-    import pytest
+    decisions = classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
 
-    with pytest.raises(ValueError, match="non-negative"):
-        classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
+    assert all(item["status"] == UNRESOLVED for item in decisions)
+    assert all(item["solver_status"] == "MALFORMED_OR_INFEASIBLE_CANDIDATE_ALLOCATION" for item in decisions)
