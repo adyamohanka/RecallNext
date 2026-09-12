@@ -63,7 +63,7 @@ contradictions, bad scenarios, timeouts and retractions cannot preserve an
 unjustified exclusion.
 
 **Current evidence:** 79 offline tests on the historical Adya QA environment and
-83 tests on the exact integrated functional head, including API workflow and a
+102 tests on the exact integrated functional head, including API workflow and a
 separate tiny oracle. The pnpm production build passes. The real Exasol boundary
 run returned six shipments, fourteen candidate edges, zero blockers, and a
 complete universe. Sequential strategy measurements remain pending.

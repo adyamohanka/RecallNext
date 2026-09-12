@@ -11,7 +11,7 @@ operational data is synthetic.
 - Historical Adya branch: `feat/adya-qa-docs-demo`
 - Current `main` merged into PR #2: `59bec09856552f1c16f51a8bfd91357839c4fac0`
 - Previous exact integrated functional head run: `8c83f836c06325b74bb40f827ac257dbce81e23f`
-- Current PR #2 Exasol safety code head: `3e3e5dc`
+- Current PR #2 exact functional head run: `64e4c51d77a9e13db76f29c908759aff630cd209`
 
 The raw offline output records Adya's original base and commands. It is
 historical evidence for that run, not a live Exasol measurement and not a claim
@@ -59,9 +59,9 @@ the remaining Exasol safety fixes. The following checks ran on 13 September
 
 | Check | Result |
 |---|---|
-| Python tests | PASS - 98 tests, one dependency deprecation warning |
+| Python tests | PASS - 102 tests, one dependency deprecation warning |
 | Ruff lint | PASS |
-| Ruff format check on files changed from `main` | PASS - 5 files |
+| Ruff format check on Python files changed from `main` | PASS - 7 files |
 | Deterministic fixture regeneration | PASS |
 | pnpm frozen-lockfile install | PASS |
 | TypeScript and Vite production build | PASS |
@@ -106,8 +106,9 @@ containerized Exasol Personal starter-kit deployment on AWS EC2. The first run
 verified revision `fcf2a83ee6d77c0cb47b6a7f1e16fcff4fc834bc`.
 
 The same load, smoke, and safety checks were repeated on 13 September 2026 at
-exact integrated functional head
-`8c83f836c06325b74bb40f827ac257dbce81e23f`. That run established:
+integrated functional head `8c83f836c06325b74bb40f827ac257dbce81e23f`,
+then again at the current PR #2 functional head
+`64e4c51d77a9e13db76f29c908759aff630cd209`. The latest run established:
 
 - Exasol image `docker.io/exasol/nano:2026.2.0-nano.3-amd64`;
 - successful schema and synthetic-fixture loading;
@@ -115,18 +116,21 @@ exact integrated functional head
 - zero blocking data-quality issues;
 - `candidate_universe_complete: true`;
 - encrypted PyExasol transport with a pinned certificate fingerprint;
-- an optional complete source that preserved completeness; and
-- a duplicate source-qualified lot that produced the expected blocker.
+- recalled-lot product mismatch and missing-container blockers;
+- rejection of a caller attempt to upgrade canonical completeness; and
+- rejection of a scenario shipment/lot pair outside the candidate view.
 
-The exact-head smoke run measured 172.794 ms for the snapshot query and 72.719
+The latest smoke run measured 164.668 ms for the snapshot query and 79.505
 ms for the candidate-edge query. These are single-run database timings over the
-small synthetic fixture, not a performance benchmark. Both temporary probe
-rows were removed and the clean post-probe smoke returned the original counts.
+small synthetic fixture, not a performance benchmark. All exact probe rows were
+removed and the clean post-probe read returned the original counts. The earlier
+`8c83f83` run separately verified optional complete coverage and duplicate
+source-qualified lot detection.
 
 The credential-free execution record is in
-`docs/live-exasol-verification.md`. The product-mismatch and missing-container
-SQL gates added after `8c83f83` require a final live rerun before this document
-can claim that the current PR #2 SQL head compiled and executed on Exasol.
+`docs/live-exasol-verification.md`. The documentation-only commit that records
+this result does not change the tested SQL, loader, configuration, or service
+code.
 
 The web API still reads the committed CSV fixture and labels that source. It
 must not be described as Exasol-backed until its database adapter is wired into

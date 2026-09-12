@@ -23,7 +23,7 @@ item. Leave an item unchecked when it has not been verified.
 
 - [x] Exasol Personal schema load and smoke check pass on the documented
   deployment. Evidence: `docs/live-exasol-verification.md`, 13 September 2026,
-  functional head `8c83f83`.
+  functional head `64e4c51`.
 - [x] Exasol version, deployment type, sanitized output and tested revision are
   saved in `docs/live-exasol-verification.md`.
 - [x] Candidate count, blocking issues and query timings are measured rather

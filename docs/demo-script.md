@@ -61,13 +61,13 @@ remaining active evidence.”
 "This is a live candidate query on the Exasol Personal starter-kit deployment.
 For the synthetic fixture, it returned six shipments and fourteen candidate
 edges with zero blockers and a complete candidate universe. The one recorded
-smoke run measured 172.794 milliseconds for the snapshot query and 72.719
+smoke run measured 164.668 milliseconds for the snapshot query and 79.505
 milliseconds for candidate edges."
 
 Use the sanitized output in `docs/live-exasol-verification.md` on screen. Do not
 describe these single-run query timings as a performance benchmark. Do not give
 a planner or end-to-end latency until that separate measurement has actually
-been recorded. The exact integrated functional head has 83 passing tests; the
+been recorded. The exact integrated functional head has 102 passing tests; the
 web demo remains a clearly labelled CSV-backed application.
 
 ## 2:40–3:00 — Limits and impact
