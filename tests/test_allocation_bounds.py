@@ -148,3 +148,37 @@ def test_oracle_does_not_call_the_production_classifier(monkeypatch):
     decisions = oracle_classify(SHIPMENTS, ["RECALLED"], {"RECALLED": 1}, ["RECALLED"])
 
     assert [decision["status"] for decision in decisions] == [POSSIBLE_INCLUSION, POSSIBLE_INCLUSION]
+
+
+def test_infeasible_quantity_balance_is_unresolved_not_a_false_exclusion():
+    rows = scenario(0)
+    rows[1]["quantity_cases"] = 11
+    decisions = classify_shipments(LOTS, SHIPMENTS, [rows], ["SOURCE-A:RECALLED"], SUCCESS)
+    assert all(item["status"] == UNRESOLVED for item in decisions)
+    assert all(item["solver_status"] == "INVALID_SCENARIO" for item in decisions)
+
+
+def test_duplicate_candidate_rows_that_overfill_a_shipment_are_unresolved():
+    rows = scenario(0)
+    rows.append(dict(rows[1]))
+    decisions = classify_shipments(LOTS, SHIPMENTS, [rows], ["SOURCE-A:RECALLED"], SUCCESS)
+    assert all(item["status"] == UNRESOLVED for item in decisions)
+    assert all(item["solver_status"] == "INVALID_SCENARIO" for item in decisions)
+
+
+def test_mixed_container_scan_cannot_clear_a_shipment_without_homogeneity_evidence():
+    # Both allocations conserve inventory and fill every shipment, but the scan
+    # alone cannot distinguish which shipment contains the recalled lot.
+    decisions = classify_shipments(
+        LOTS, SHIPMENTS, [scenario(0), scenario(10)], ["SOURCE-A:RECALLED"], SUCCESS
+    )
+    assert all(item["status"] == POSSIBLE_INCLUSION for item in decisions)
+
+
+def test_malformed_candidate_quantity_is_unresolved_instead_of_raising_or_reconciling():
+    for value in (-1, "invalid", None, True):
+        rows = scenario(0)
+        rows[0]["quantity_cases"] = value
+        decisions = classify_shipments(LOTS, SHIPMENTS, [rows], ["SOURCE-A:RECALLED"], SUCCESS)
+        assert all(item["status"] == UNRESOLVED for item in decisions)
+        assert all(item["solver_status"] == "INVALID_SCENARIO" for item in decisions)

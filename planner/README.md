@@ -40,3 +40,20 @@ minutes, holds, coverage, and false exclusions from real simulated outcomes.
 
 The shared API-ready fixture is `tests/fixtures/planner_demo.json`. It is
 synthetic and intentionally contains no hidden ground truth.
+
+`evaluate_decision_trace` is test/evaluation-only. It accepts explicitly
+provided synthetic ground truth to report false exclusions, resolved cases,
+unnecessary holds, action count, simulated minutes, and evaluation time. Never
+pass its ground truth input to `classify_shipments` or `rank_actions`.
+
+## Handoff to Harini
+
+For the API adapter, call `classify_shipments` with Exasol's complete feasible
+candidate scenarios and send its list output directly as `decisions`. Call
+`rank_actions` with those current decisions plus complete outcome decision
+scenarios. Both outputs are JSON serializable. The planner itself does not
+connect to Exasol and must not accept or verify human evidence; Harini's API
+creates a new incident version only after a human accepts it, then triggers
+deterministic reassessment.
+
+See `HANDOFF.md` for the exact adapter shape and API integration boundary.
