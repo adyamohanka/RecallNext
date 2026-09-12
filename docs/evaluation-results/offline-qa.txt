@@ -1,0 +1,84 @@
+RecallNext offline QA
+Date: 2026-09-12
+Harini integration base: 6450a4189fe1a67be379cd915a29a3c59361c5e8
+Adya branch: feat/adya-qa-docs-demo
+
+Environment
+- macOS 26.5.1 arm64
+- Apple M5 MacBook Air, 16 GB memory
+- Python 3.12.14
+- pytest 8.4.2
+- PyExasol 2.4.0
+- Ruff 0.16.7
+- Node.js 24.19.0
+- pnpm 11.19.0
+
+Python editable install
+$ python -m pip install -e '.[dev]'
+PASS
+
+Python, workflow and API tests
+$ python -m pytest -q
+79 passed, 1 warning in 13.05s
+Warning: Starlette TestClient reports a deprecated AnyIO alias in the installed
+dependency; application tests pass.
+
+Automated-review regressions
+- PASS: demo replacement raises before any DELETE when another incident exists
+  in an incident-scoped table.
+- PASS: only a current pending proposal for the same action is deduplicated;
+  rejected and stale-version content can be proposed again.
+- PASS: a zero-quantity lot is conserved without requiring a zero allocation
+  row in every scenario.
+
+Fixture reproducibility
+$ python -m data.generate_fixture --check
+Fixture is reproducible: data/sample
+
+Python quality gates
+$ ruff check backend data planner tests
+All checks passed!
+
+$ ruff format --check backend data planner tests
+34 files already formatted
+
+Frontend dependency and build gates
+$ pnpm --dir frontend install --frozen-lockfile
+PASS using pnpm 11.19.0; lockfile unchanged
+
+$ pnpm --dir frontend build
+PASS: TypeScript project build and Vite production build
+dist/index.html: 0.45 kB (0.29 kB gzip)
+dist/assets/index-sp6dQegL.css: 9.22 kB (2.81 kB gzip)
+dist/assets/index-BTsCWiSO.js: 231.95 kB (72.21 kB gzip)
+Vite reported 138 ms on the final recorded run.
+
+Documentation and repository checks
+- All local Markdown links resolve.
+- No non-dependency file exceeds 5 MB.
+- git diff --check: PASS.
+- Tracked-secret scan: PASS; the only password assignment is the documented
+  `<database-password>` placeholder in `docs/run-guide.md`.
+
+Local visual workflow smoke
+- PASS: synthetic-fixture badge and CSV data-source detail visible.
+- PASS: decision-support notice states that exclusion does not mean safe.
+- PASS: six text-labelled shipment decisions and 125 histories visible.
+- PASS: conditional action value and estimated effort visible.
+- PASS: saving a proposal retained incident version 1 and showed no decision
+  change.
+- PASS: after saving, all evidence-action choices, the source reference, the
+  structured fact and the save button were visibly disabled while accept and
+  reject remained available.
+- PASS: human acceptance created version 2, changed decision bounds and showed
+  an evidence-linked diff.
+
+Unavailable integration checks
+- Live Exasol: NOT RUN; no local installation or team connection details were
+  available.
+- Exasol schema compilation and timings: NOT RUN.
+- Exasol-backed API adapter: NOT PRESENT; the web API labels its CSV fixture.
+- Live document model: NOT PRESENT; synthetic example facts require no credits.
+- Repeatable browser automation: NOT PRESENT; production build and manual visual
+  smoke pass.
+- Sequential strategy benchmark: NOT PRESENT; baseline orderings only.
