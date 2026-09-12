@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Action, Decision, Incident, Status } from "./types";
 
 const INCIDENT_ID = "INC-DEMO-001";
@@ -40,6 +40,12 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const exampleRequest = useRef<AbortController | null>(null);
+
+  function cancelExample() {
+    exampleRequest.current?.abort();
+    exampleRequest.current = null;
+  }
 
   const load = useCallback(async () => {
     const [incidentData, decisionData, actionData] = await Promise.all([
@@ -57,12 +63,15 @@ export default function App() {
   useEffect(() => {
     if (!selected) return;
     const controller = new AbortController();
+    exampleRequest.current = controller;
     setFact("{}");
     setSource(sourceFor(selected));
     json<{ proposed_fact: object }>(`/api/incidents/${INCIDENT_ID}/evidence-actions/${selected.action_id}/example-fact`, { signal: controller.signal })
-      .then((data) => setFact(JSON.stringify(data.proposed_fact, null, 2)))
+      .then((data) => {
+        if (!controller.signal.aborted) setFact(JSON.stringify(data.proposed_fact, null, 2));
+      })
       .catch((reason) => {
-        if (!(reason instanceof DOMException && reason.name === "AbortError")) setError(reason.message);
+        if (!controller.signal.aborted) setError(reason.message);
       });
     setEvidenceId(null);
     setMessage(null);
@@ -72,7 +81,10 @@ export default function App() {
   const openCases = useMemo(() => decisions.filter((item) => item.status === "POSSIBLE_INCLUSION" || item.status === "UNRESOLVED").reduce((sum, item) => sum + item.held_cases, 0), [decisions]);
 
   async function propose() {
-    if (!selected || !incident) return;
+    if (!selected || !incident || busy || evidenceId) return;
+    // Invalidate before hashing or posting; even a queued response must not
+    // replace the draft or the server-confirmed evidence shown for review.
+    cancelExample();
     setBusy(true); setError(null); setMessage(null);
     try {
       const parsed = JSON.parse(fact);
@@ -176,8 +188,8 @@ export default function App() {
           <div className="review-grid">
             <div className="source-preview"><span className="doc-label">Synthetic source preview</span><div className="document"><p>{selected?.action_type.replaceAll("_", " ")}</p><strong>{selected?.target_id}</strong><dl><dt>Scope</dt><dd>{selected?.affected_shipments.join(", ")}</dd><dt>Retrieval</dt><dd>{selected?.estimated_minutes} min</dd><dt>Availability</dt><dd>{selected?.availability}</dd></dl></div><small>{selected?.question} Example content comes from the committed synthetic incident.</small></div>
             <div className="form">
-              <label>Source reference<input value={source} disabled={busy || Boolean(evidenceId)} onChange={(event) => setSource(event.target.value)} /></label>
-              <label>Proposed structured fact<textarea rows={9} value={fact} disabled={busy || Boolean(evidenceId)} onChange={(event) => setFact(event.target.value)} spellCheck={false} /></label>
+              <label>Source reference<input value={source} disabled={busy || Boolean(evidenceId)} onChange={(event) => { cancelExample(); setSource(event.target.value); }} /></label>
+              <label>Proposed structured fact<textarea rows={9} value={fact} disabled={busy || Boolean(evidenceId)} onChange={(event) => { cancelExample(); setFact(event.target.value); }} spellCheck={false} /></label>
               <label>Verified by<input value={reviewer} onChange={(event) => setReviewer(event.target.value)} /></label>
               {evidenceId && <label>Rejection reason<input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} /></label>}
               {error && <p className="feedback error">{error}</p>}{message && <p className="feedback success">{message}</p>}
