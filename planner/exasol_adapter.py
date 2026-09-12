@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-
 SUCCESS = "SUCCESS"
 MALFORMED_CANDIDATE_ROWS = "MALFORMED_CANDIDATE_ROWS"
 
@@ -23,6 +22,15 @@ def _field(row: Mapping[str, Any], name: str) -> Any:
     if uppercase in row:
         return row[uppercase]
     raise KeyError(name)
+
+
+def _required_text(row: Mapping[str, Any], name: str) -> str:
+    """Return a non-blank SQL identity without fabricating one from NULL."""
+
+    value = _field(row, name)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-blank string")
+    return value.strip()
 
 
 def planner_input_from_candidate_rows(
@@ -47,7 +55,10 @@ def planner_input_from_candidate_rows(
         "candidate_universe_complete": candidate_universe_complete is True,
         "solver_status": str(solver_status),
     }
-    if assumptions["solver_status"] != SUCCESS or not assumptions["candidate_universe_complete"]:
+    if (
+        assumptions["solver_status"] != SUCCESS
+        or not assumptions["candidate_universe_complete"]
+    ):
         return {
             "shipments": shipment_list,
             "candidate_allocations": [],
@@ -59,16 +70,23 @@ def planner_input_from_candidate_rows(
     seen: set[tuple[str, str, str, int]] = set()
     try:
         for row in candidate_rows:
-            scenario_id = str(_field(row, "scenario_id"))
-            shipment_id = str(_field(row, "shipment_id"))
-            lot_source_id = str(_field(row, "lot_source_id"))
-            lot_code = str(_field(row, "lot_code"))
+            scenario_id = _required_text(row, "scenario_id")
+            shipment_id = _required_text(row, "shipment_id")
+            lot_source_id = _required_text(row, "lot_source_id")
+            lot_code = _required_text(row, "lot_code")
             quantity_cases = _field(row, "quantity_cases")
-            if not scenario_id or not shipment_id or not lot_source_id or not lot_code:
-                raise ValueError("candidate identity fields must not be blank")
-            if not isinstance(quantity_cases, int) or isinstance(quantity_cases, bool) or quantity_cases < 0:
+            if (
+                not isinstance(quantity_cases, int)
+                or isinstance(quantity_cases, bool)
+                or quantity_cases < 0
+            ):
                 raise ValueError("quantity_cases must be a non-negative integer")
-            dedupe_key = (scenario_id, shipment_id, f"{lot_source_id}:{lot_code}", quantity_cases)
+            dedupe_key = (
+                scenario_id,
+                shipment_id,
+                f"{lot_source_id}:{lot_code}",
+                quantity_cases,
+            )
             if dedupe_key in seen:
                 raise ValueError("duplicate candidate allocation row")
             seen.add(dedupe_key)
