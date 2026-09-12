@@ -1,5 +1,5 @@
 from data.generate_fixture import build_fixture, check_fixture, validate_fixture
-from data.load_fixture import TABLE_SPECS, read_typed_rows
+from data.load_fixture import TABLE_SPECS, _to_wire_value, read_typed_rows
 
 
 def test_committed_fixture_matches_generator():
@@ -42,3 +42,12 @@ def test_loader_reads_every_csv_with_exact_types():
     assert loaded["lot"][0][5] is True
     assert loaded["container"][0][1] is None
     assert loaded["shipment_container"][1][3] is None
+
+
+def test_loader_converts_timestamps_to_json_serializable_wire_values():
+    from datetime import datetime
+
+    timestamp = datetime.fromisoformat("2026-09-07T12:34:56")
+
+    assert _to_wire_value(timestamp) == "2026-09-07 12:34:56"
+    assert _to_wire_value(12) == 12
