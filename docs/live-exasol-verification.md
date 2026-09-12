@@ -29,6 +29,7 @@ runtime-specific certificate fingerprint.
 | Candidate edges | 14 |
 | Blocking data-quality issues | 0 |
 | Candidate universe complete | true |
+| Live duplicate-identity safety probe | passed and removed |
 
 ## Loader output
 
@@ -71,6 +72,21 @@ Smoke check passed against real Exasol.
 
 These timings are a single smoke run over the committed synthetic fixture and
 must not be presented as a general Exasol performance benchmark.
+
+## Live duplicate-identity safety probe
+
+A temporary lot row reused `FARM-A:REC-2026-01` with a different `LOT_ID`. The
+real Exasol view returned the expected blocker:
+
+```text
+ISSUE_CODE,ENTITY_ID
+DUPLICATE_LOT_SOURCE_CODE,FARM-A:REC-2026-01
+```
+
+The probe deleted only its exact `LIVE-DQ-PROBE` row. A verification query
+returned `REMAINING_PROBE_ROWS=0`, and a post-cleanup smoke run again returned
+6 shipments, 14 candidate edges, zero blockers, and a complete candidate
+universe.
 
 ## Compatibility findings fixed during the live run
 
