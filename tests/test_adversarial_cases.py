@@ -168,7 +168,7 @@ def test_missing_required_source_stream_blocks_narrowing(tmp_path):
     )
 
 
-def test_additional_non_required_source_does_not_block_complete_snapshot(tmp_path):
+def test_duplicate_non_required_source_does_not_block_complete_snapshot(tmp_path):
     data = copied_fixture(tmp_path)
     path = data / "source_coverage.csv"
     with path.open(encoding="utf-8", newline="") as handle:
@@ -184,6 +184,7 @@ def test_additional_non_required_source_does_not_block_complete_snapshot(tmp_pat
             "is_complete": "false",
         }
     )
+    rows.append(rows[-1].copy())
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
         writer.writeheader()

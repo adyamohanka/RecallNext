@@ -76,6 +76,8 @@ class RecallWorkflow:
         coverage: dict[str, dict[str, str]] = {}
         for row in coverage_rows:
             source = row["source_system"]
+            if source not in required:
+                continue
             if source in coverage:
                 self.data_quality_issues.append(f"DUPLICATE_SOURCE_COVERAGE:{source}")
                 continue
