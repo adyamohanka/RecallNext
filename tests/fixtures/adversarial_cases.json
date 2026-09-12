@@ -1,0 +1,108 @@
+{
+  "fixture_version": "qa-v2",
+  "synthetic": true,
+  "scenarios": [
+    {
+      "name": "clean_initial_incident",
+      "layer": "workflow",
+      "reason": "Complete source coverage still permits the recalled lot in four shipments while two source-qualified shipments remain excluded.",
+      "expected": {
+        "POSSIBLE_INCLUSION": 4,
+        "EXCLUDED_UNDER_ASSUMPTIONS": 2,
+        "feasible_scenarios": 125
+      }
+    },
+    {
+      "name": "known_mapping_reduces_scope",
+      "layer": "workflow",
+      "reason": "A reviewed manifest that fully assigns S-200 to the non-recalled FARM-A lot removes recalled exposure from that shipment only.",
+      "expected": {
+        "shipment_id": "S-200",
+        "status": "EXCLUDED_UNDER_ASSUMPTIONS",
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "name": "mixed_container_single_scan",
+      "layer": "workflow",
+      "reason": "One retained-case observation accounts for that case but cannot establish the identity of the other cases drawn from an unverified mixed container.",
+      "expected": {
+        "shipment_id": "S-300",
+        "status": "POSSIBLE_INCLUSION",
+        "min": 0,
+        "max": 4
+      }
+    },
+    {
+      "name": "contradictory_label_and_pick_log",
+      "layer": "workflow",
+      "reason": "A verified C-100 recalled-lot label and an incompatible C-200 pick log leave no feasible history, so every shipment becomes unresolved.",
+      "expected": {
+        "status": "UNRESOLVED",
+        "solver_status": "CONFLICT",
+        "shipment_count": 6
+      }
+    },
+    {
+      "name": "missing_source_stream",
+      "layer": "source_coverage",
+      "reason": "An absent required dispatch-source declaration makes the candidate universe incomplete and blocks every exclusion.",
+      "expected": {
+        "status": "UNRESOLVED",
+        "solver_status": "INCOMPLETE_CANDIDATE_UNIVERSE",
+        "issue": "MISSING_REQUIRED_SOURCE_COVERAGE"
+      }
+    },
+    {
+      "name": "duplicate_inventory_snapshot",
+      "layer": "source_data",
+      "reason": "A repeated shipment identifier is a blocking data-quality issue and must not double inventory or support narrowing.",
+      "expected": {
+        "status": "UNRESOLVED",
+        "shipment_count": 6,
+        "issue": "DUPLICATE_SHIPMENT_ID:S-100"
+      }
+    },
+    {
+      "name": "same_code_different_sources",
+      "layer": "classification",
+      "reason": "FARM-B:REC-2026-01 is distinct from the recalled FARM-A:REC-2026-01 despite sharing the lot-code suffix.",
+      "expected": {
+        "shipments": ["S-500", "S-600"],
+        "status": "EXCLUDED_UNDER_ASSUMPTIONS",
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "name": "solver_timeout_or_error",
+      "layer": "classification",
+      "reason": "A timeout or error means computation is incomplete, so supplied scenarios cannot be used to narrow scope.",
+      "expected": {
+        "statuses": ["TIMEOUT", "ERROR"],
+        "decision_status": "UNRESOLVED"
+      }
+    },
+    {
+      "name": "rejected_or_unavailable_evidence",
+      "layer": "evidence",
+      "reason": "Rejected evidence does not change the incident, and an unavailable outcome keeps an action's guaranteed resolved quantity at zero.",
+      "expected": {
+        "review_status": "REJECTED",
+        "version": 1,
+        "worst_case_resolved_cases": 0
+      }
+    },
+    {
+      "name": "evidence_retraction",
+      "layer": "evidence",
+      "reason": "Retracting an accepted manifest rebuilds the incident from active evidence and invalidates the resulting exclusion.",
+      "expected": {
+        "accepted_status": "EXCLUDED_UNDER_ASSUMPTIONS",
+        "retracted_status": "POSSIBLE_INCLUSION",
+        "version": 3
+      }
+    }
+  ]
+}

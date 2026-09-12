@@ -39,6 +39,17 @@ TABLE_SPECS = (
     TableSpec("action_shipment", "ACTION_SHIPMENT"),
 )
 
+INCIDENT_SCOPED_TABLES = (
+    "INCIDENT",
+    "INCIDENT_RECALLED_LOT",
+    "SOURCE_COVERAGE",
+    "REQUIRED_SOURCE_SYSTEM",
+    "EVIDENCE_ACTION",
+    "SHIPMENT_DECISION",
+    "ALLOCATION_SCENARIO",
+    "SCENARIO_ALLOCATION",
+)
+
 INTEGER_FIELDS = {
     "incident_version",
     "snapshot_version",
@@ -116,6 +127,19 @@ def _incident_exists(connection: Any, incident_id: str) -> bool:
     return bool(row and int(row["row_count"]) > 0)
 
 
+def _other_incident_exists(connection: Any, incident_id: str) -> bool:
+    for table in INCIDENT_SCOPED_TABLES:
+        statement = connection.execute(
+            f"SELECT COUNT(*) AS row_count FROM RECALLNEXT.{table} "
+            "WHERE INCIDENT_ID <> {incident_id}",
+            {"incident_id": incident_id},
+        )
+        row = statement.fetchone()
+        if row and int(row["row_count"]) > 0:
+            return True
+    return False
+
+
 def _delete_by_value(
     connection: Any, table: str, field: str, values: Iterable[str]
 ) -> None:
@@ -129,7 +153,13 @@ def _delete_by_value(
 def remove_demo_fixture(
     connection: Any, data_directory: Path, incident_id: str
 ) -> None:
-    """Delete only identifiers declared by this fixture after an explicit flag."""
+    """Delete the fixture only from a database dedicated to this demo incident."""
+
+    if _other_incident_exists(connection, incident_id):
+        raise RuntimeError(
+            "--replace-demo is disabled while non-demo incidents exist; "
+            "use a dedicated demo schema to avoid deleting shared global records"
+        )
 
     actions = [
         row[0]

@@ -371,6 +371,24 @@ class IncidentService:
                 raise ContractError(
                     "min_recalled_cases cannot exceed max_recalled_cases"
                 )
+            assumptions = dict(decision.get("assumptions", {}))
+            if (
+                assumptions.get("candidate_universe_complete") is not True
+                and status != "UNRESOLVED"
+            ):
+                raise ContractError(
+                    "an incomplete candidate universe requires UNRESOLVED"
+                )
+            if solver_status != PLANNER_SUCCESS and status != "UNRESOLVED":
+                raise ContractError("a failed solver requires UNRESOLVED")
+            status_matches_bounds = {
+                "CONFIRMED_INCLUSION": minimum > 0,
+                "POSSIBLE_INCLUSION": minimum == 0 and maximum > 0,
+                "EXCLUDED_UNDER_ASSUMPTIONS": maximum == 0,
+                "UNRESOLVED": True,
+            }
+            if not status_matches_bounds[status]:
+                raise ContractError("decision status does not match its bounds")
             rows.append(
                 (
                     incident_id,
@@ -381,7 +399,7 @@ class IncidentService:
                     status,
                     solver_status,
                     json.dumps(
-                        dict(decision.get("assumptions", {})),
+                        assumptions,
                         sort_keys=True,
                         separators=(",", ":"),
                     ),

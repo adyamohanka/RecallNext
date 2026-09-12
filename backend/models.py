@@ -29,3 +29,7 @@ class EvidenceAcceptance(BaseModel):
 
 class EvidenceRejection(EvidenceAcceptance):
     reason: str = Field(min_length=1, max_length=1000)
+
+
+class EvidenceRetraction(EvidenceAcceptance):
+    reason: str = Field(min_length=1, max_length=1000)

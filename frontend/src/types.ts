@@ -17,7 +17,7 @@ export interface Incident {
   model_version: string;
   data_source: string;
   data_source_detail: string;
-  summary: { shipment_count: number; held_cases: number; feasible_scenarios: number; solver_status: string; status_counts: Record<string, number> };
+  summary: { shipment_count: number; held_cases: number; feasible_scenarios: number; solver_status: string; status_counts: Record<string, number>; data_quality_issues: string[] };
   latest_diff: Diff[];
 }
 

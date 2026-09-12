@@ -59,6 +59,34 @@ def test_rejection_records_review_without_changing_version():
     assert workflow.decisions() == before
 
 
+def test_only_current_pending_evidence_is_deduplicated():
+    workflow = default_workflow()
+    pending = submission(workflow, content_hash="repeatable-hash")
+    duplicate = submission(workflow, content_hash="repeatable-hash")
+
+    assert duplicate["duplicate"] is True
+    assert duplicate["evidence_id"] == pending["evidence_id"]
+
+    workflow.reject_evidence(pending["evidence_id"], "Reviewer", 1, "Unreadable")
+    after_rejection = submission(workflow, content_hash="repeatable-hash")
+
+    assert after_rejection["duplicate"] is False
+    assert after_rejection["evidence_id"] != pending["evidence_id"]
+
+
+def test_stale_duplicate_hash_creates_a_current_reviewable_proposal():
+    workflow = default_workflow()
+    stale = submission(workflow, content_hash="stale-repeatable-hash")
+    advancing = submission(workflow, content_hash="advancing-hash")
+    workflow.accept_evidence(advancing["evidence_id"], "Reviewer", 1)
+
+    current = submission(workflow, content_hash="stale-repeatable-hash")
+
+    assert current["duplicate"] is False
+    assert current["incident_version"] == 2
+    assert current["evidence_id"] != stale["evidence_id"]
+
+
 def test_contradiction_creates_unresolved_version():
     workflow = default_workflow()
     fact = {

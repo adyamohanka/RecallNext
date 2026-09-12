@@ -147,3 +147,65 @@ def test_decision_persistence_rejects_unsafe_status_and_invalid_bounds():
             ],
             model_version="planner-v1",
         )
+
+
+@pytest.mark.parametrize(
+    ("status", "minimum", "maximum", "solver_status", "assumptions"),
+    [
+        ("EXCLUDED_UNDER_ASSUMPTIONS", 0, 4, "SUCCESS", {}),
+        ("CONFIRMED_INCLUSION", 0, 4, "SUCCESS", {}),
+        ("POSSIBLE_INCLUSION", 2, 4, "SUCCESS", {}),
+        ("EXCLUDED_UNDER_ASSUMPTIONS", 0, 0, "TIMEOUT", {}),
+        (
+            "EXCLUDED_UNDER_ASSUMPTIONS",
+            0,
+            0,
+            "SUCCESS",
+            {"candidate_universe_complete": False},
+        ),
+    ],
+)
+def test_decision_persistence_rejects_inconsistent_safety_metadata(
+    status, minimum, maximum, solver_status, assumptions
+):
+    service = IncidentService(RecordingConnection())
+    decision = {
+        "shipment_id": "S-100",
+        "min_recalled_cases": minimum,
+        "max_recalled_cases": maximum,
+        "status": status,
+        "solver_status": solver_status,
+        "assumptions": assumptions,
+    }
+
+    with pytest.raises(ContractError):
+        service.persist_decisions(
+            "INC-DEMO-001", 1, [decision], model_version="planner-v1"
+        )
+
+
+def test_decision_persistence_accepts_consistent_complete_result():
+    connection = RecordingConnection()
+    service = IncidentService(connection)
+
+    service.persist_decisions(
+        "INC-DEMO-001",
+        1,
+        [
+            {
+                "shipment_id": "S-100",
+                "min_recalled_cases": 0,
+                "max_recalled_cases": 0,
+                "status": "EXCLUDED_UNDER_ASSUMPTIONS",
+                "solver_status": "SUCCESS",
+                "assumptions": {"candidate_universe_complete": True},
+            }
+        ],
+        model_version="planner-v1",
+    )
+
+    assert len(connection.prepared) == 1
+    assert connection.prepared[0].rows[0][5:7] == (
+        "EXCLUDED_UNDER_ASSUMPTIONS",
+        "SUCCESS",
+    )

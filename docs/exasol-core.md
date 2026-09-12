@@ -17,7 +17,8 @@ database fallback.
   containers, six shipments, two missing pick references, and the same lot code
   under two different suppliers.
 - `data/load_fixture.py`: a transaction-controlled PyExasol loader that refuses
-  to overwrite the demo incident unless `--replace-demo` is explicit.
+  to overwrite the demo incident unless `--replace-demo` is explicit and the
+  schema contains no other incident.
 - `backend/services/incident_service.py`: incident, candidate, scenario,
   decision, and evidence-action data services.
 - `backend/contracts.py`: strict conversion of flat Exasol scenario rows into
@@ -70,8 +71,9 @@ python -m data.load_fixture
 ```
 
 The default load is non-destructive and fails if `INC-DEMO-001` already exists.
-The explicit `--replace-demo` option removes only identifiers declared by the
-committed synthetic fixture before reloading them.
+The explicit `--replace-demo` option is restricted to a demo-only schema. It
+aborts before deletion when any other incident exists because the schema's
+global shipment, container, lot and event identifiers do not record ownership.
 
 Run the read-only database smoke check:
 

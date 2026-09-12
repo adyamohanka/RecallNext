@@ -58,14 +58,28 @@ def generate_feasible_scenarios(
             "candidate_universe_complete": False,
         }
 
+    shipment_rows = list(shipments)
+    lot_rows = list(lots)
     shipment_quantities = {
         str(item["shipment_id"]): _integer(item["quantity_cases"], "shipment quantity")
-        for item in shipments
+        for item in shipment_rows
     }
+    if len(shipment_quantities) != len(shipment_rows):
+        return {
+            "candidate_allocations": [],
+            "solver_status": "DUPLICATE_SHIPMENT_ID",
+            "candidate_universe_complete": False,
+        }
     lot_quantities = {
         str(item["lot_id"]): _integer(item["quantity_cases"], "lot quantity")
-        for item in lots
+        for item in lot_rows
     }
+    if len(lot_quantities) != len(lot_rows):
+        return {
+            "candidate_allocations": [],
+            "solver_status": "DUPLICATE_LOT_ID",
+            "candidate_universe_complete": False,
+        }
     groups: dict[tuple[str, str], list[tuple[str, int, int]]] = defaultdict(list)
     group_targets: dict[tuple[str, str], int] = {}
     group_lots: set[tuple[str, str, str]] = set()
@@ -159,7 +173,10 @@ def generate_feasible_scenarios(
                 )
         if any(used[lot_id] > quantity for lot_id, quantity in lot_quantities.items()):
             continue
-        if closed_inventory and dict(used) != lot_quantities:
+        if closed_inventory and any(
+            used.get(lot_id, 0) != quantity
+            for lot_id, quantity in lot_quantities.items()
+        ):
             continue
         scenarios.append(
             sorted(

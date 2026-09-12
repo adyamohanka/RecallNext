@@ -13,6 +13,7 @@ All endpoints use incident `INC-DEMO-001` in the current prototype. Unknown inci
 | POST | `/api/incidents/INC-DEMO-001/evidence` | Save a proposal without reassessment |
 | POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/accept` | Human acceptance and deterministic reassessment |
 | POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/reject` | Human rejection without changing decisions or version |
+| POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/retract` | Human retraction, reconstruction from active evidence and a new version |
 
 Evidence proposal:
 
@@ -46,8 +47,37 @@ Rejection:
 }
 ```
 
-A stale `expected_version` returns 409. Duplicate content hashes return the existing proposal. If an accepted fact eliminates every currently feasible scenario, the new version has solver status `CONFLICT` and every shipment is `UNRESOLVED`.
+Retraction uses the same fields as rejection:
+
+```json
+{
+  "verified_by": "Reviewer name",
+  "expected_version": 2,
+  "reason": "The source owner withdrew this record."
+}
+```
+
+A stale `expected_version` returns 409. A proposal is also rejected as stale if
+another acceptance advances the incident after it was submitted. Duplicate
+content hashes return the existing proposal only when it is pending for the
+same action and current incident version. Rejected, retracted and older-version
+records do not prevent a new review. If an accepted fact eliminates every
+currently feasible scenario, the new version has solver status `CONFLICT` and
+every shipment is `UNRESOLVED`.
+
+Only accepted or conflicting evidence can be retracted. The current prototype
+requires reverse chronological retraction when several reviewed facts exist.
+Retraction rebuilds the scenario set from the original snapshot and every
+still-active accepted fact; it does not treat the previous narrowed state as
+ground truth. The retraction creates a new incident version and its decision
+diff identifies the retracted evidence. This prototype keeps versions in
+memory, so they reset when the API process restarts.
 
 Before a proposal is stored, the API validates its fact shape, known identifiers, integer quantities, complete allocation totals, and compatibility with the selected evidence action. Invalid or mismatched facts return 422.
+
+After the UI saves a proposal, its selected action, source reference and
+structured fact are locked until the reviewer accepts or rejects it. The
+displayed proposal therefore stays identical to the stored evidence targeted
+by the review request.
 
 The fixed decision statuses are `CONFIRMED_INCLUSION`, `POSSIBLE_INCLUSION`, `EXCLUDED_UNDER_ASSUMPTIONS`, and `UNRESOLVED`. Clients must display text labels in addition to colour.

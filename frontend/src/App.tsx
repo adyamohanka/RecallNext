@@ -78,11 +78,13 @@ export default function App() {
       const parsed = JSON.parse(fact);
       const contentHash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${source}:${fact}`));
       const hash = [...new Uint8Array(contentHash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-      const evidence = await json<{ evidence_id: string; duplicate: boolean; status: string }>(`/api/incidents/${INCIDENT_ID}/evidence`, {
+      const evidence = await json<{ evidence_id: string; duplicate: boolean; status: string; source_reference: string; proposed_fact: object }>(`/api/incidents/${INCIDENT_ID}/evidence`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action_id: selected.action_id, source_reference: source, proposed_fact: parsed, content_hash: hash, review_status: "PENDING_REVIEW" }),
       });
       const reviewable = evidence.status === "PENDING_REVIEW";
+      setSource(evidence.source_reference);
+      setFact(JSON.stringify(evidence.proposed_fact, null, 2));
       setEvidenceId(reviewable ? evidence.evidence_id : null);
       setMessage(evidence.duplicate ? `This document is already ${evidence.status.toLowerCase().replaceAll("_", " ")}.` : "Proposal saved. Decisions have not changed.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save proposal"); }
@@ -161,7 +163,7 @@ export default function App() {
           <aside className="actions panel">
             <div className="panel-title"><div><p className="eyebrow">Ranked investigation queue</p><h2>Next evidence</h2></div></div>
             <div className="action-list">
-              {actions.map((action, index) => <button key={action.action_id} className={selected?.action_id === action.action_id ? "action selected" : "action"} onClick={() => setSelected(action)}>
+              {actions.map((action, index) => <button key={action.action_id} className={selected?.action_id === action.action_id ? "action selected" : "action"} disabled={busy || Boolean(evidenceId)} onClick={() => setSelected(action)}>
                 <span className="rank">{String(index + 1).padStart(2, "0")}</span><span className="action-copy"><strong>{action.question}</strong><small>{action.action_type.replaceAll("_", " ")} · {action.target_id}</small><span className="impact">Up to {action.conditional_best_case_resolved_cases} cases conditionally · {action.estimated_minutes} min</span></span><span className="arrow">→</span>
               </button>)}
             </div>
@@ -174,13 +176,13 @@ export default function App() {
           <div className="review-grid">
             <div className="source-preview"><span className="doc-label">Synthetic source preview</span><div className="document"><p>{selected?.action_type.replaceAll("_", " ")}</p><strong>{selected?.target_id}</strong><dl><dt>Scope</dt><dd>{selected?.affected_shipments.join(", ")}</dd><dt>Retrieval</dt><dd>{selected?.estimated_minutes} min</dd><dt>Availability</dt><dd>{selected?.availability}</dd></dl></div><small>{selected?.question} Example content comes from the committed synthetic incident.</small></div>
             <div className="form">
-              <label>Source reference<input value={source} onChange={(event) => setSource(event.target.value)} /></label>
-              <label>Proposed structured fact<textarea rows={9} value={fact} onChange={(event) => setFact(event.target.value)} spellCheck={false} /></label>
+              <label>Source reference<input value={source} disabled={busy || Boolean(evidenceId)} onChange={(event) => setSource(event.target.value)} /></label>
+              <label>Proposed structured fact<textarea rows={9} value={fact} disabled={busy || Boolean(evidenceId)} onChange={(event) => setFact(event.target.value)} spellCheck={false} /></label>
               <label>Verified by<input value={reviewer} onChange={(event) => setReviewer(event.target.value)} /></label>
               {evidenceId && <label>Rejection reason<input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} /></label>}
               {error && <p className="feedback error">{error}</p>}{message && <p className="feedback success">{message}</p>}
-              <div className="controls"><button className="secondary" disabled={busy} onClick={propose}>Save proposal</button><button className="danger" disabled={busy || !evidenceId || !rejectionReason.trim()} onClick={reject}>Reject</button><button className="primary" disabled={busy || !evidenceId} onClick={accept}>Accept &amp; reassess</button></div>
-              <p className="boundary">Saving a proposal never changes a shipment decision. Acceptance checks the current incident version and runs deterministic reassessment.</p>
+              <div className="controls"><button className="secondary" disabled={busy || Boolean(evidenceId)} onClick={propose}>Save proposal</button><button className="danger" disabled={busy || !evidenceId || !rejectionReason.trim()} onClick={reject}>Reject</button><button className="primary" disabled={busy || !evidenceId} onClick={accept}>Accept &amp; reassess</button></div>
+              <p className="boundary">Saving a proposal never changes a shipment decision. While review is pending, its action, source and structured fact are locked so approval always applies to the displayed proposal. Acceptance checks the current incident version and runs deterministic reassessment.</p>
             </div>
           </div>
         </section>
