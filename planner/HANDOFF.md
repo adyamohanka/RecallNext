@@ -21,6 +21,12 @@ Convert the bounded solver's **complete feasible scenarios** into:
 }
 ```
 
+Use `planner_input_from_candidate_rows` when the SQL result has the required
+columns: `SCENARIO_ID`, `SHIPMENT_ID`, `LOT_SOURCE_ID`, `LOT_CODE`, and
+`QUANTITY_CASES`. It groups rows by `SCENARIO_ID` and produces the object above.
+Rows without a complete scenario grouping, duplicate rows, or malformed fields
+fail closed as an incomplete candidate universe.
+
 `lot_id` must be the stable source-qualified identity
 `LOT_SOURCE_ID:LOT_CODE`. Do not pass lot code alone. A missing candidate
 universe, conflict, timeout, or malformed/over-capacity allocation produces
