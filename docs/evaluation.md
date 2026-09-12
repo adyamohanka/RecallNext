@@ -1,5 +1,9 @@
 # Evaluation record
 
+## Sequential planner benchmark
+
+Run `python -m planner.benchmark_cli` to regenerate the committed raw JSON and Markdown summary in `docs/evaluation-results/`. The benchmark uses two hidden synthetic scenarios, budgets of 4 and 11 simulated minutes, and fixed seeds 11, 17, 23, 29 and 31. It evaluates all five declared strategies. `planner_seconds` is local selection, filtering and classification time; `simulated_minutes` is declared retrieval effort only. No live Exasol or AWS timing is included.
+
 This record separates four verification scopes: Adya's historical offline QA
 run, local checks on the synchronized PR #2 branch, completed live Exasol runs,
 and the still-pending investigation-strategy evaluation. All committed
