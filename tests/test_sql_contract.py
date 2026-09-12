@@ -59,10 +59,12 @@ def test_flat_scenario_view_contains_grouping_and_safety_metadata():
     assert "MISSING_REQUIRED_SOURCE_COVERAGE" in views
     assert "NO_RECALLED_LOT_DECLARED" in views
     assert "UNKNOWN_RECALLED_LOT_REFERENCE" in views
+    assert "RECALLED_LOT_PRODUCT_MISMATCH" in views
     assert "LOT_IDENTITY_MISMATCH" in views
     assert "DUPLICATE_LOT_SOURCE_CODE" in views
     assert "HAVING COUNT(*) > 1" in views
     assert "SHIPMENT_QUANTITY_MISMATCH" in views
+    assert "UNKNOWN_SHIPMENT_CONTAINER_REFERENCE" in views
     assert "CONTAINER_OVERALLOCATED" in views
 
 

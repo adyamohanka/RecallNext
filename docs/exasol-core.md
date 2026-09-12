@@ -142,6 +142,8 @@ database, `lot_id` is always the source-qualified key
 - Duplicate `LOT_SOURCE_ID:LOT_CODE` identities are detected by a blocking
   data-quality rule because Exasol Personal does not support a `UNIQUE` table
   constraint.
+- A recalled lot must belong to the incident product, and every in-scope
+  shipment-container mapping must reference an existing container.
 - A raw candidate edge cannot be passed off as a feasible scenario.
 - Unknown timestamps broaden candidates and block narrowing.
 - Negative or fractional case quantities are rejected.

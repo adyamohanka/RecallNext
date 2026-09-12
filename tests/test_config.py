@@ -55,3 +55,10 @@ def test_rejects_insecure_certificate_bypass():
                 "EXASOL_DSN": "example.invalid/nocertcheck:8563",
             }
         )
+
+
+def test_rejects_disabled_transport_encryption():
+    with pytest.raises(ConfigurationError, match="must remain true"):
+        ExasolConfig.from_environment(
+            {**VALID_ENVIRONMENT, "EXASOL_ENCRYPTION": "false"}
+        )
