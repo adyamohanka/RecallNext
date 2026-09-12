@@ -37,3 +37,21 @@ def test_duplicate_candidate_rows_fail_closed():
     adapter_input = planner_input_from_candidate_rows(SHIPMENTS, [row, row], ["FARM-A:REC"])
 
     assert adapter_input["assumptions"]["solver_status"] == "MALFORMED_CANDIDATE_ROWS"
+
+
+def test_sql_null_or_blank_identity_fields_fail_closed_instead_of_becoming_strings():
+    base_row = {
+        "scenario_id": "A",
+        "shipment_id": "S-1",
+        "lot_source_id": "FARM-A",
+        "lot_code": "REC",
+        "quantity_cases": 4,
+    }
+
+    for field, invalid_value in (("scenario_id", None), ("shipment_id", "  "), ("lot_source_id", None), ("lot_code", "")):
+        row = {**base_row, field: invalid_value}
+        adapter_input = planner_input_from_candidate_rows(SHIPMENTS, [row], ["FARM-A:REC"])
+        decisions = classify_shipments([], **adapter_input)
+
+        assert adapter_input["assumptions"]["candidate_universe_complete"] is False
+        assert all(decision["status"] == UNRESOLVED for decision in decisions)

@@ -25,6 +25,20 @@ def _field(row: Mapping[str, Any], name: str) -> Any:
     raise KeyError(name)
 
 
+def _required_identity(row: Mapping[str, Any], name: str) -> str:
+    """Return a non-null, non-blank SQL identity without fabricating strings."""
+
+    value = _field(row, name)
+    if value is None:
+        raise ValueError(f"{name} must not be NULL")
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a string")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{name} must not be blank")
+    return normalized
+
+
 def planner_input_from_candidate_rows(
     shipments: Iterable[Mapping[str, Any]],
     candidate_rows: Iterable[Mapping[str, Any]],
@@ -59,13 +73,11 @@ def planner_input_from_candidate_rows(
     seen: set[tuple[str, str, str, int]] = set()
     try:
         for row in candidate_rows:
-            scenario_id = str(_field(row, "scenario_id"))
-            shipment_id = str(_field(row, "shipment_id"))
-            lot_source_id = str(_field(row, "lot_source_id"))
-            lot_code = str(_field(row, "lot_code"))
+            scenario_id = _required_identity(row, "scenario_id")
+            shipment_id = _required_identity(row, "shipment_id")
+            lot_source_id = _required_identity(row, "lot_source_id")
+            lot_code = _required_identity(row, "lot_code")
             quantity_cases = _field(row, "quantity_cases")
-            if not scenario_id or not shipment_id or not lot_source_id or not lot_code:
-                raise ValueError("candidate identity fields must not be blank")
             if not isinstance(quantity_cases, int) or isinstance(quantity_cases, bool) or quantity_cases < 0:
                 raise ValueError("quantity_cases must be a non-negative integer")
             dedupe_key = (scenario_id, shipment_id, f"{lot_source_id}:{lot_code}", quantity_cases)
