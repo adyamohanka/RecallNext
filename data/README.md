@@ -39,4 +39,6 @@ python -m data.load_fixture
 
 The loader refuses to overwrite an existing `INC-DEMO-001` incident. Pass
 `--replace-demo` only when you intentionally want to replace this synthetic
-fixture and no user-owned incident data shares its identifiers.
+fixture in a schema dedicated to the demo. Replacement aborts before any
+deletion when another incident exists because global shipment, container, lot
+and event identifiers do not carry ownership metadata.

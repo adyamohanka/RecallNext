@@ -69,6 +69,11 @@ python -m data.load_fixture
 python -m backend.smoke
 ```
 
+`python -m data.load_fixture --replace-demo` is intentionally restricted to a
+demo-only schema. It refuses to delete anything when an incident other than
+`INC-DEMO-001` exists. Use a separate schema instead of forcing replacement in
+a shared database.
+
 The smoke check expects six shipments, 14 candidate edges, complete source coverage and no blocking quality issues. Save its raw output and Exasol version in `docs/evaluation.md` only after running it against the actual deployment.
 
 The loader uses `connection.execute_sql_script()`, so the project now requires PyExasol 2.2.3 or newer. Do not lower this bound without testing the schema loader.
@@ -82,4 +87,6 @@ The loader uses `connection.execute_sql_script()`, so the project now requires P
 - `LIMIT_REACHED`: reduce the incident component or raise the bounded limits only after measuring memory/runtime. Never use partial scenarios for an exclusion.
 - `INCOMPLETE_CANDIDATE_UNIVERSE`: check that every source in `required_source_system.csv` has one complete row in `source_coverage.csv`.
 - a duplicate identifier issue: correct the input snapshot; the adapter deliberately keeps decisions unresolved rather than choosing one duplicate.
+- `--replace-demo` reports another incident: use a dedicated demo schema; the
+  loader will not risk deleting globally keyed records from a shared schema.
 - Exasol certificate failure: use the trust/fingerprint configuration supplied by the deployment owner. Do not disable verification in committed code.

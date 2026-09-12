@@ -173,7 +173,10 @@ def generate_feasible_scenarios(
                 )
         if any(used[lot_id] > quantity for lot_id, quantity in lot_quantities.items()):
             continue
-        if closed_inventory and dict(used) != lot_quantities:
+        if closed_inventory and any(
+            used.get(lot_id, 0) != quantity
+            for lot_id, quantity in lot_quantities.items()
+        ):
             continue
         scenarios.append(
             sorted(

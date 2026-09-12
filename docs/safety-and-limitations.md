@@ -20,6 +20,8 @@ holds, release decisions, notifications and regulatory procedures.
 - Proposed, rejected or unavailable evidence has no decision effect.
 - Human acceptance and an exact current version are required before
   reassessment; an older pending proposal cannot cross a version boundary.
+- A pending review locks the displayed action, source and structured fact.
+  Rejected, retracted and older evidence hashes cannot strand a later proposal.
 - Retraction rebuilds the result from the original scenarios and remaining
   active evidence.
 - One observed case can tighten that shipment by one case but cannot establish
@@ -52,6 +54,8 @@ conversion or warehouse-scale optimization.
 - The running web application reads committed CSVs. The Exasol schema, loader,
   queries and persistence path exist separately, but the API repository adapter
   and live database verification are pending.
+- Destructive demo-fixture replacement is allowed only when no other incident
+  exists in the schema. The loader aborts before deletion in a shared schema.
 - The scenario enumerator is capped at 250,000 combinations and 10,000 feasible
   scenarios. It returns no partial universe when a limit is exceeded.
 - The evidence queue ranks one step ahead and does not claim a globally optimal

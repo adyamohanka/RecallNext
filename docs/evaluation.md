@@ -36,7 +36,7 @@ matrix `qa-v2`.
 | Check | Result | Evidence |
 |---|---|---|
 | Editable Python install | PASS | `docs/evaluation-results/offline-qa.txt` |
-| Python unit, workflow and API tests | PASS — 74 tests | `docs/evaluation-results/offline-qa.txt` |
+| Python unit, workflow and API tests | PASS — 79 tests | `docs/evaluation-results/offline-qa.txt` |
 | Deterministic fixture regeneration | PASS | `docs/evaluation-results/offline-qa.txt` |
 | Ruff lint | PASS | `docs/evaluation-results/offline-qa.txt` |
 | Ruff format check | PASS — 34 files | `docs/evaluation-results/offline-qa.txt` |
@@ -55,7 +55,8 @@ The offline suite covers:
 - a 125-scenario closed synthetic inventory with four possible and two excluded
   shipments;
 - exact shipment and lot conservation, invalid edges, empty scenario sets and
-  configured enumeration limits;
+  configured enumeration limits, including a closed inventory with a
+  zero-quantity lot;
 - missing required source coverage and duplicate inventory identifiers;
 - source-qualified lot identity when two suppliers reuse one lot code;
 - mixed-container single-case evidence that tightens only the observed case and
@@ -63,12 +64,14 @@ The offline suite covers:
 - incompatible accepted label and pick-log evidence producing `CONFLICT` and
   `UNRESOLVED`;
 - rejected and unavailable evidence producing no narrowing;
-- version conflicts, proposals made stale by another acceptance, duplicate
-  content and malformed facts;
+- version conflicts, proposals made stale by another acceptance, current
+  pending deduplication, resubmission after rejection or version advance, and
+  malformed facts;
 - accepted-evidence retraction rebuilding from active evidence and invalidating
   a prior exclusion;
 - persistence rejection when status, bounds, solver status and completeness
   metadata disagree;
+- fixture replacement refusal before deletion when another incident exists;
 - partial action outcomes and conditional-value dominance behavior.
 
 These checks establish behavior only for the declared finite inputs. They do

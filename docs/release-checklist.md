@@ -41,6 +41,11 @@ item. Leave an item unchecked when it has not been verified.
 - [ ] Proposed and rejected evidence leaves the incident unchanged.
 - [ ] Stale proposals and stale expected versions return a conflict.
 - [ ] Retraction creates a version and invalidates its dependent decision.
+- [ ] Pending-review source and fact fields are locked, and reviewed or stale
+  hashes can be submitted into a new review when appropriate.
+- [ ] A zero-quantity lot does not make an otherwise conserved inventory
+  infeasible.
+- [ ] Demo replacement aborts before deletion if another incident exists.
 - [ ] Exasol persistence rejects status/bounds/solver/completeness disagreement.
 - [ ] The UI states that exclusion under assumptions does not mean safe.
 

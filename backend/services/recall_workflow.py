@@ -569,6 +569,9 @@ class RecallWorkflow:
                     item
                     for item in self._evidence.values()
                     if item["content_hash"] == payload["content_hash"]
+                    and item["action_id"] == payload["action_id"]
+                    and item["incident_version"] == self.current_version
+                    and item["status"] == "PENDING_REVIEW"
                 ),
                 None,
             )

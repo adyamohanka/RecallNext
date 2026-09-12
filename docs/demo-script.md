@@ -64,7 +64,7 @@ remaining active evidence.”
 
 If the team cannot complete the live run, say: “The Exasol schema and smoke path
 are implemented, but live database validation remains pending,” and do not show
-invented numbers. The offline QA has 74 passing tests at the recorded revision.
+invented numbers. The offline QA has 79 passing tests at the recorded revision.
 
 ## 2:40–3:00 — Limits and impact
 

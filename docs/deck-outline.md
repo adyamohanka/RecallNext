@@ -62,7 +62,7 @@ measured database time. Remove that claim if the live run is unavailable.
 contradictions, bad scenarios, timeouts and retractions cannot preserve an
 unjustified exclusion.
 
-**Current evidence:** 74 offline tests on the recorded Adya QA environment,
+**Current evidence:** 79 offline tests on the recorded Adya QA environment,
 including actual API workflow and a separate tiny oracle. The pnpm production
 build also passes. Live Exasol and sequential strategy measurements remain
 pending.

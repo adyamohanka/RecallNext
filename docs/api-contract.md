@@ -59,9 +59,11 @@ Retraction uses the same fields as rejection:
 
 A stale `expected_version` returns 409. A proposal is also rejected as stale if
 another acceptance advances the incident after it was submitted. Duplicate
-content hashes return the existing proposal. If an accepted fact eliminates
-every currently feasible scenario, the new version has solver status `CONFLICT`
-and every shipment is `UNRESOLVED`.
+content hashes return the existing proposal only when it is pending for the
+same action and current incident version. Rejected, retracted and older-version
+records do not prevent a new review. If an accepted fact eliminates every
+currently feasible scenario, the new version has solver status `CONFLICT` and
+every shipment is `UNRESOLVED`.
 
 Only accepted or conflicting evidence can be retracted. The current prototype
 requires reverse chronological retraction when several reviewed facts exist.
@@ -72,5 +74,10 @@ diff identifies the retracted evidence. This prototype keeps versions in
 memory, so they reset when the API process restarts.
 
 Before a proposal is stored, the API validates its fact shape, known identifiers, integer quantities, complete allocation totals, and compatibility with the selected evidence action. Invalid or mismatched facts return 422.
+
+After the UI saves a proposal, its selected action, source reference and
+structured fact are locked until the reviewer accepts or rejects it. The
+displayed proposal therefore stays identical to the stored evidence targeted
+by the review request.
 
 The fixed decision statuses are `CONFIRMED_INCLUSION`, `POSSIBLE_INCLUSION`, `EXCLUDED_UNDER_ASSUMPTIONS`, and `UNRESOLVED`. Clients must display text labels in addition to colour.

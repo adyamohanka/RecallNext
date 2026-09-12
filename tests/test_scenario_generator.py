@@ -120,3 +120,27 @@ def test_duplicate_inventory_identifiers_block_scenario_generation():
         "solver_status": "DUPLICATE_LOT_ID",
         "candidate_universe_complete": False,
     }
+
+
+def test_zero_quantity_lot_is_conserved_without_an_allocation_row():
+    result = generate_feasible_scenarios(
+        [
+            {
+                "shipment_id": "S1",
+                "container_id": "C1",
+                "lot_id": "ACTIVE",
+                "group_quantity_cases": 1,
+                "min_quantity_cases": 1,
+                "max_quantity_cases": 1,
+            }
+        ],
+        [{"shipment_id": "S1", "quantity_cases": 1}],
+        [
+            {"lot_id": "ACTIVE", "quantity_cases": 1},
+            {"lot_id": "EMPTY", "quantity_cases": 0},
+        ],
+        candidate_universe_complete=True,
+    )
+
+    assert result["solver_status"] == "SUCCESS"
+    assert len(result["candidate_allocations"]) == 1

@@ -1,5 +1,29 @@
+from pathlib import Path
+
+import pytest
+
 from data.generate_fixture import build_fixture, check_fixture, validate_fixture
-from data.load_fixture import TABLE_SPECS, read_typed_rows
+from data.load_fixture import TABLE_SPECS, read_typed_rows, remove_demo_fixture
+
+
+class _CountStatement:
+    def __init__(self, count):
+        self.count = count
+
+    def fetchone(self):
+        return {"row_count": self.count}
+
+
+class _SharedSchemaConnection:
+    def __init__(self, shared_table):
+        self.shared_table = shared_table
+        self.commands = []
+
+    def execute(self, sql, parameters=None):
+        self.commands.append((sql, parameters))
+        if sql.lstrip().startswith("SELECT COUNT(*)"):
+            return _CountStatement(int(f"RECALLNEXT.{self.shared_table}" in sql))
+        raise AssertionError("replacement mutated a shared schema")
 
 
 def test_committed_fixture_matches_generator():
@@ -45,3 +69,17 @@ def test_loader_reads_every_csv_with_exact_types():
     assert loaded["lot"][0][5] is True
     assert loaded["container"][0][1] is None
     assert loaded["shipment_container"][1][3] is None
+
+
+@pytest.mark.parametrize("shared_table", ["INCIDENT", "SCENARIO_ALLOCATION"])
+def test_replace_demo_refuses_a_schema_containing_other_incidents(shared_table):
+    connection = _SharedSchemaConnection(shared_table)
+
+    with pytest.raises(RuntimeError, match="non-demo incidents exist"):
+        remove_demo_fixture(connection, Path("data/sample"), "INC-DEMO-001")
+
+    assert connection.commands
+    assert all(
+        command.lstrip().startswith("SELECT COUNT(*)")
+        for command, _ in connection.commands
+    )

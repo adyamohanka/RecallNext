@@ -19,9 +19,17 @@ PASS
 
 Python, workflow and API tests
 $ python -m pytest -q
-74 passed, 1 warning in 12.03s
+79 passed, 1 warning in 13.05s
 Warning: Starlette TestClient reports a deprecated AnyIO alias in the installed
 dependency; application tests pass.
+
+Automated-review regressions
+- PASS: demo replacement raises before any DELETE when another incident exists
+  in an incident-scoped table.
+- PASS: only a current pending proposal for the same action is deduplicated;
+  rejected and stale-version content can be proposed again.
+- PASS: a zero-quantity lot is conserved without requiring a zero allocation
+  row in every scenario.
 
 Fixture reproducibility
 $ python -m data.generate_fixture --check
@@ -41,9 +49,9 @@ PASS using pnpm 11.19.0; lockfile unchanged
 $ pnpm --dir frontend build
 PASS: TypeScript project build and Vite production build
 dist/index.html: 0.45 kB (0.29 kB gzip)
-dist/assets/index-CZXPnuK5.css: 9.05 kB (2.77 kB gzip)
-dist/assets/index-WDH_OLit.js: 231.70 kB (72.13 kB gzip)
-Vite reported 110 ms on the final recorded run.
+dist/assets/index-sp6dQegL.css: 9.22 kB (2.81 kB gzip)
+dist/assets/index-BTsCWiSO.js: 231.95 kB (72.21 kB gzip)
+Vite reported 138 ms on the final recorded run.
 
 Documentation and repository checks
 - All local Markdown links resolve.
@@ -59,6 +67,9 @@ Local visual workflow smoke
 - PASS: conditional action value and estimated effort visible.
 - PASS: saving a proposal retained incident version 1 and showed no decision
   change.
+- PASS: after saving, all evidence-action choices, the source reference, the
+  structured fact and the save button were visibly disabled while accept and
+  reject remained available.
 - PASS: human acceptance created version 2, changed decision bounds and showed
   an evidence-linked diff.
 
