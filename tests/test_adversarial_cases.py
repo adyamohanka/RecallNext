@@ -168,6 +168,33 @@ def test_missing_required_source_stream_blocks_narrowing(tmp_path):
     )
 
 
+def test_additional_non_required_source_does_not_block_complete_snapshot(tmp_path):
+    data = copied_fixture(tmp_path)
+    path = data / "source_coverage.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+        fields = list(rows[0])
+    rows.append(
+        {
+            "incident_id": "INC-DEMO-001",
+            "incident_version": "1",
+            "source_system": "OPTIONAL_ARCHIVE",
+            "expected_records": "1",
+            "received_records": "0",
+            "is_complete": "false",
+        }
+    )
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    workflow = RecallWorkflow(data)
+
+    assert workflow.incident()["summary"]["solver_status"] == "SUCCESS"
+    assert workflow.incident()["summary"]["data_quality_issues"] == []
+
+
 def test_duplicate_inventory_snapshot_does_not_double_count(tmp_path):
     expected = case("duplicate_inventory_snapshot")
     data = copied_fixture(tmp_path)
@@ -304,3 +331,47 @@ def test_reviewed_evidence_retracts_in_reverse_version_order():
         workflow.retract_evidence(
             label["evidence_id"], "QA reviewer", 3, "Older source withdrawn"
         )
+
+
+def test_retracting_latest_conflict_preserves_earlier_active_conflict():
+    workflow = default_workflow()
+    label = proposal(
+        workflow,
+        "ACT-LABEL-C100",
+        workflow.example_fact("ACT-LABEL-C100"),
+        "conflict-label-qa-v2",
+    )
+    workflow.accept_evidence(label["evidence_id"], "QA reviewer", 1)
+    pick = proposal(
+        workflow,
+        "ACT-PICK-C200",
+        workflow.example_fact("ACT-PICK-C200"),
+        "first-conflict-qa-v2",
+    )
+    first_conflict = workflow.accept_evidence(pick["evidence_id"], "QA reviewer", 2)
+    manifest = proposal(
+        workflow,
+        "ACT-MANIFEST-S200",
+        workflow.example_fact("ACT-MANIFEST-S200"),
+        "second-conflict-qa-v2",
+    )
+    second_conflict = workflow.accept_evidence(
+        manifest["evidence_id"], "QA reviewer", 3
+    )
+
+    assert first_conflict["solver_status"] == "CONFLICT"
+    assert second_conflict["solver_status"] == "CONFLICT"
+
+    result = workflow.retract_evidence(
+        manifest["evidence_id"], "QA reviewer", 4, "Latest conflict withdrawn"
+    )
+
+    assert result["solver_status"] == "CONFLICT"
+    assert workflow.decisions()["evidence_references"] == [
+        label["evidence_id"],
+        pick["evidence_id"],
+        manifest["evidence_id"],
+    ]
+    assert all(
+        item["status"] == "UNRESOLVED" for item in workflow.decisions()["decisions"]
+    )
