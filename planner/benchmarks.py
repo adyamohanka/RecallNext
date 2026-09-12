@@ -17,7 +17,11 @@ from .models import EXCLUDED_UNDER_ASSUMPTIONS
 
 
 def _value(item: Any, name: str, default: Any = None) -> Any:
-    return item.get(name, default) if isinstance(item, Mapping) else getattr(item, name, default)
+    return (
+        item.get(name, default)
+        if isinstance(item, Mapping)
+        else getattr(item, name, default)
+    )
 
 
 def baseline_action_orders(
@@ -40,7 +44,13 @@ def baseline_action_orders(
     return {
         "hold_all_plausible_inventory": [],
         "random_action_order": random_ids,
-        "cheapest_first": sorted(ids, key=lambda action_id: (_value(by_id[action_id], "estimated_minutes"), action_id)),
+        "cheapest_first": sorted(
+            ids,
+            key=lambda action_id: (
+                _value(by_id[action_id], "estimated_minutes"),
+                action_id,
+            ),
+        ),
         "highest_directly_involved_quantity_first": sorted(
             ids, key=lambda action_id: (-int(involved.get(action_id, 0)), action_id)
         ),

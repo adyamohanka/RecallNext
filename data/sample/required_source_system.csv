@@ -1,0 +1,4 @@
+incident_id,incident_version,source_system
+INC-DEMO-001,1,ERP_DISPATCH
+INC-DEMO-001,1,WMS_CONTAINERS
+INC-DEMO-001,1,WMS_RECEIPTS

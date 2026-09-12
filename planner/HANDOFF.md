@@ -24,6 +24,12 @@ Convert the bounded solver's **complete feasible scenarios** into:
 Use `planner_input_from_candidate_rows` when the SQL result has the required
 columns: `SCENARIO_ID`, `SHIPMENT_ID`, `LOT_SOURCE_ID`, `LOT_CODE`, and
 `QUANTITY_CASES`. It groups rows by `SCENARIO_ID` and produces the object above.
+Pass authoritative lot inventory as the first argument to `classify_shipments`.
+Every scenario must exactly fill every shipment and stay within lot quantities.
+For a closed inventory, additionally set `assumptions["inventory_balance_mode"]`
+to `"CLOSED"`; every lot quantity must then be conserved. Unknown recalled lots
+are unresolved. The adapter groups rows; it does not certify solver completeness.
+
 Rows without a complete scenario grouping, duplicate rows, or malformed fields
 fail closed as an incomplete candidate universe.
 
@@ -37,7 +43,9 @@ universe, conflict, timeout, or malformed/over-capacity allocation produces
 ```python
 from planner import classify_shipments, rank_actions
 
-decisions = classify_shipments([], shipments, candidate_allocations, recalled_lot_ids, assumptions)
+# Supply the authoritative lot inventory separately; never infer it from candidates.
+lots = [{"lot_id": "FARM-A:LOT-42", "quantity_cases": 12}]
+decisions = classify_shipments(lots, shipments, candidate_allocations, recalled_lot_ids, assumptions)
 actions = rank_actions(decisions, evidence_actions, outcome_scenarios)
 ```
 

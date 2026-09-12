@@ -1,7 +1,8 @@
-"""Independent tiny-instance exhaustive oracle for allocation bounds tests."""
+"""Independent exhaustive utilities for tiny allocation fixtures."""
 
 from __future__ import annotations
 
+from collections import defaultdict
 from itertools import product
 from typing import Any
 
@@ -11,54 +12,39 @@ from .models import CONFIRMED_INCLUSION, EXCLUDED_UNDER_ASSUMPTIONS, POSSIBLE_IN
 def enumerate_binary_allocations(
     shipment_ids: list[str], lot_ids: list[str], quantities: dict[str, int]
 ) -> list[list[dict[str, Any]]]:
-    """Enumerate allocations for tiny one-case lots.
-
-    This intentionally simple oracle is for tests only. Each lot is assigned to
-    one shipment; the total per lot comes from ``quantities``.
-    """
-
     if not shipment_ids:
         return []
-    scenarios: list[list[dict[str, Any]]] = []
-    for assigned_shipments in product(shipment_ids, repeat=len(lot_ids)):
-        scenarios.append(
-            [
-                {
-                    "shipment_id": shipment_id,
-                    "lot_id": lot_id,
-                    "quantity_cases": quantities[lot_id],
-                }
-                for lot_id, shipment_id in zip(lot_ids, assigned_shipments)
-            ]
-        )
-    return scenarios
+    return [
+        [
+            {
+                "shipment_id": shipment_id,
+                "lot_id": lot_id,
+                "quantity_cases": quantities[lot_id],
+            }
+            for lot_id, shipment_id in zip(lot_ids, assigned_shipments)
+        ]
+        for assigned_shipments in product(shipment_ids, repeat=len(lot_ids))
+    ]
 
 
-def oracle_classify(
-    shipments: list[dict[str, Any]], lot_ids: list[str], quantities: dict[str, int], recalled_lot_ids: list[str]
+def oracle_classify_scenarios(
+    shipments: list[dict[str, Any]],
+    scenarios: list[list[dict[str, Any]]],
+    recalled_lot_ids: list[str],
 ) -> list[dict[str, Any]]:
-    """Independently classify an exhaustive tiny candidate universe.
-
-    This intentionally does not invoke production classification: it is the
-    oracle used to detect a drift in the production bounds implementation.
-    """
-
-    scenarios = enumerate_binary_allocations(
-        [shipment["shipment_id"] for shipment in shipments], lot_ids, quantities
-    )
+    """Compute bounds without importing or calling production classification."""
     recalled = set(recalled_lot_ids)
-    decisions: list[dict[str, Any]] = []
+    results = []
     for shipment in shipments:
         shipment_id = shipment["shipment_id"]
-        totals = [
-            sum(
-                row["quantity_cases"]
-                for row in scenario
-                if row["shipment_id"] == shipment_id and row["lot_id"] in recalled
-            )
-            for scenario in scenarios
-        ]
-        minimum, maximum = min(totals), max(totals)
+        quantities = []
+        for scenario in scenarios:
+            by_shipment: dict[str, int] = defaultdict(int)
+            for row in scenario:
+                if row["lot_id"] in recalled:
+                    by_shipment[row["shipment_id"]] += row["quantity_cases"]
+            quantities.append(by_shipment[shipment_id])
+        minimum, maximum = min(quantities), max(quantities)
         status = (
             CONFIRMED_INCLUSION
             if minimum > 0
@@ -66,15 +52,24 @@ def oracle_classify(
             if maximum > 0
             else EXCLUDED_UNDER_ASSUMPTIONS
         )
-        decisions.append(
+        results.append(
             {
                 "shipment_id": shipment_id,
                 "min_recalled_cases": minimum,
                 "max_recalled_cases": maximum,
-                "held_cases": shipment["quantity_cases"],
                 "status": status,
-                "solver_status": "SUCCESS",
-                "assumptions": {},
             }
         )
-    return decisions
+    return results
+
+
+def oracle_classify(
+    shipments: list[dict[str, Any]],
+    lot_ids: list[str],
+    quantities: dict[str, int],
+    recalled_lot_ids: list[str],
+) -> list[dict[str, Any]]:
+    scenarios = enumerate_binary_allocations(
+        [s["shipment_id"] for s in shipments], lot_ids, quantities
+    )
+    return oracle_classify_scenarios(shipments, scenarios, recalled_lot_ids)

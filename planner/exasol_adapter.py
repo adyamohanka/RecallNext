@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-
 SUCCESS = "SUCCESS"
 MALFORMED_CANDIDATE_ROWS = "MALFORMED_CANDIDATE_ROWS"
 
@@ -32,7 +31,7 @@ def _required_identity(row: Mapping[str, Any], name: str) -> str:
     if value is None:
         raise ValueError(f"{name} must not be NULL")
     if not isinstance(value, str):
-        raise ValueError(f"{name} must be a string")
+        raise TypeError(f"{name} must be a string")
     normalized = value.strip()
     if not normalized:
         raise ValueError(f"{name} must not be blank")
@@ -47,7 +46,10 @@ def planner_input_from_candidate_rows(
     solver_status: str = SUCCESS,
     candidate_universe_complete: bool = True,
 ) -> dict[str, Any]:
-    """Return the exact input shape accepted by ``classify_shipments``.
+    """Return keyword inputs for ``classify_shipments(lots, **adapter_input)``.
+
+    The caller must supply authoritative lot inventory separately. Every
+    scenario is validated against that inventory and exact shipment demand.
 
     Required candidate columns are ``scenario_id``, ``shipment_id``,
     ``lot_source_id``, ``lot_code``, and ``quantity_cases``. A ``scenario_id``

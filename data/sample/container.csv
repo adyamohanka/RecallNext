@@ -1,0 +1,4 @@
+container_id,lot_id,product_id,quantity_cases,homogeneity_verified,location_id,source_event_id
+C-100,,PROD-APPLE,10,false,WH-01,EV-CONT-100
+C-200,,PROD-APPLE,10,false,WH-01,EV-CONT-200
+C-300,FARM-B:REC-2026-01,PROD-APPLE,10,true,WH-01,EV-CONT-300
