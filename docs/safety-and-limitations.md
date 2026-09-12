@@ -52,8 +52,8 @@ cross-contamination, returns, losses, opening inventory, arbitrary unit
 conversion or warehouse-scale optimization.
 
 - The running web application reads committed CSVs. The Exasol schema, loader,
-  queries and persistence path exist separately, but the API repository adapter
-  and live database verification are pending.
+  queries and persistence path were verified separately against a real Exasol
+  deployment, but the API repository adapter remains unconnected.
 - Destructive demo-fixture replacement is allowed only when no other incident
   exists in the schema. The loader aborts before deletion in a shared schema.
 - The scenario enumerator is capped at 250,000 combinations and 10,000 feasible
@@ -66,7 +66,8 @@ conversion or warehouse-scale optimization.
 - Incident and evidence versions are in memory and reset at API restart.
 - Retraction is implemented in the API, uses reverse chronological order for
   multiple reviewed facts, and is not exposed in the current UI.
-- Sequential baseline evaluation and live Exasol timings are pending.
+- Sequential baseline evaluation is pending. Single-run live Exasol query
+  timings are recorded, but they are not a performance benchmark.
 
 ## Data and AI boundary
 

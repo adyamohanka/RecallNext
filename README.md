@@ -15,7 +15,7 @@ AI-assisted extraction may propose a structured fact. A human must accept it bef
 - source-coverage and duplicate-inventory gates before scenario generation;
 - adversarial checks for invalid scenario coverage, conflicts, stale reviews, mixed containers, source-qualified lot identity, retraction and bounded computation.
 
-The integrated web application currently starts in `SYNTHETIC_FIXTURE` mode and says so in the health response and UI. Its planner and evidence workflow are real; its data comes directly from the committed CSV fixture. The Exasol loader and smoke path are implemented separately, but still require validation against the team’s Exasol Personal instance. Do not describe the web API as Exasol-backed until that live check passes and the API repository adapter is connected.
+The integrated web application currently starts in `SYNTHETIC_FIXTURE` mode and says so in the health response and UI. Its planner and evidence workflow are real; its data comes directly from the committed CSV fixture. The separate Exasol loader and smoke path passed against a real Exasol Personal starter-kit deployment at the recorded revision. Do not describe the web API as Exasol-backed until its repository adapter is connected and tested.
 
 ## Demo flow
 
@@ -90,7 +90,7 @@ The fixture is synthetic and describes fictional warehouse records. This project
 - `tests/` — unit, API and adversarial workflow tests
 - `docs/` — run guide, API, architecture, evaluation and safety notes
 
-The measured offline checks and unverified integration work are separated in
+The measured offline and live checks, plus unverified integration work, are separated in
 [docs/evaluation.md](docs/evaluation.md). Use
 [docs/release-checklist.md](docs/release-checklist.md) before submission.
 

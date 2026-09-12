@@ -28,7 +28,7 @@ proposed evidence --human acceptance--> new incident version and diff
 accepted evidence --human retraction--> rebuild from active evidence
 ```
 
-The integrated demo adapter reconstructs the same candidate semantics from the committed CSVs and labels that source in every incident and health response. Connecting the API runtime to Exasol is the next adapter step after live schema validation; the API must not claim that connection before it exists.
+The integrated demo adapter reconstructs the same candidate semantics from the committed CSVs and labels that source in every incident and health response. Live schema, fixture, query, and safety-probe validation is complete at the recorded revision. Connecting the API runtime to Exasol remains the next adapter step; the API must not claim that connection before it exists.
 
 The scenario generator deliberately returns no scenarios if its search bound is exceeded. Classification independently validates shipment totals, known lot limits and closed-inventory conservation before allowing an exclusion.
 

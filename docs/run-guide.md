@@ -60,7 +60,7 @@ environment variables and does not load `.env` automatically. Never commit the
 password.
 
 ```bash
-export EXASOL_DSN="127.0.0.1:8563"
+export EXASOL_DSN="127.0.0.1/<sha256-certificate-fingerprint>:8563"
 export EXASOL_USER="<database-user>"
 export EXASOL_PASSWORD="<database-password>"
 export EXASOL_SCHEMA="RECALLNEXT"
@@ -74,7 +74,7 @@ demo-only schema. It refuses to delete anything when an incident other than
 `INC-DEMO-001` exists. Use a separate schema instead of forcing replacement in
 a shared database.
 
-The smoke check expects six shipments, 14 candidate edges, complete source coverage and no blocking quality issues. Save its raw output and Exasol version in `docs/evaluation.md` only after running it against the actual deployment.
+The smoke check expects six shipments, 14 candidate edges, complete source coverage and no blocking quality issues. The sanitized result from the verified deployment is recorded in `docs/live-exasol-verification.md`. Record new measurements only after running them against the named deployment and revision.
 
 The loader uses `connection.execute_sql_script()`, so the project now requires PyExasol 2.2.3 or newer. Do not lower this bound without testing the schema loader.
 

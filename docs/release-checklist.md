@@ -21,11 +21,12 @@ item. Leave an item unchecked when it has not been verified.
 
 ## Exasol and integration
 
-- [ ] Exasol Personal schema load and smoke check pass on the documented
-  deployment.
-- [ ] Exasol version, deployment type, sanitized output and tested revision are
-  saved.
-- [ ] Candidate count, blocking issues and query timings are measured rather
+- [x] Exasol Personal schema load and smoke check pass on the documented
+  deployment. Evidence: `docs/live-exasol-verification.md`, 13 September 2026,
+  functional head `8c83f83`.
+- [x] Exasol version, deployment type, sanitized output and tested revision are
+  saved in `docs/live-exasol-verification.md`.
+- [x] Candidate count, blocking issues and query timings are measured rather
   than copied from fixture expectations.
 - [ ] The demo clearly labels the API’s data source. Do not describe the API as
   Exasol-backed until its repository adapter is connected and tested.
