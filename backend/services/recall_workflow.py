@@ -76,18 +76,20 @@ class RecallWorkflow:
         coverage: dict[str, dict[str, str]] = {}
         for row in coverage_rows:
             source = row["source_system"]
+            if source not in required:
+                continue
             if source in coverage:
                 self.data_quality_issues.append(f"DUPLICATE_SOURCE_COVERAGE:{source}")
                 continue
             coverage[source] = row
-        if not required or set(coverage) != required:
+        if not required or not required.issubset(coverage):
             self.data_quality_issues.append("MISSING_REQUIRED_SOURCE_COVERAGE")
             return False
         try:
             complete = all(
                 row["is_complete"].strip().lower() == "true"
                 and int(row["received_records"]) >= int(row["expected_records"])
-                for row in coverage.values()
+                for row in (coverage[source] for source in required)
             )
         except (KeyError, TypeError, ValueError):
             complete = False
@@ -733,7 +735,7 @@ class RecallWorkflow:
                 (
                     item
                     for item in self._evidence.values()
-                    if item["status"] == "ACCEPTED"
+                    if item["status"] in {"ACCEPTED", "CONFLICTING"}
                 ),
                 key=lambda item: item["accepted_into_version"],
             )
