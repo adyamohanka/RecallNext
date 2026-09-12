@@ -68,6 +68,21 @@ def classify_shipments(
             for shipment in shipment_rows
         ]
 
+    # Candidate scenarios are expected to be feasible before this planner sees
+    # them. Still, reject a malformed or over-capacity scenario defensively:
+    # treating it as evidence would make a false exclusion possible.
+    capacities = {_shipment_id(shipment): _quantity(shipment) for shipment in shipment_rows}
+    if not _scenarios_fit_shipments(scenarios, capacities):
+        return [
+            _unresolved(
+                _shipment_id(shipment),
+                _quantity(shipment),
+                "INFEASIBLE_CANDIDATE_ALLOCATION",
+                assumptions_dict,
+            )
+            for shipment in shipment_rows
+        ]
+
     results: list[dict[str, Any]] = []
     for shipment in shipment_rows:
         shipment_id = _shipment_id(shipment)
@@ -107,3 +122,18 @@ def _unresolved(
         "solver_status": solver_status,
         "assumptions": assumptions,
     }
+
+
+def _scenarios_fit_shipments(scenarios: list[list[Any]], capacities: Mapping[str, int]) -> bool:
+    """Ensure every supplied allocation fits known shipment capacity."""
+
+    for scenario in scenarios:
+        allocated: dict[str, int] = {}
+        for row in scenario:
+            shipment_id = _shipment_id(row)
+            if shipment_id not in capacities:
+                return False
+            allocated[shipment_id] = allocated.get(shipment_id, 0) + _quantity(row)
+        if any(total > capacities[shipment_id] for shipment_id, total in allocated.items()):
+            return False
+    return True

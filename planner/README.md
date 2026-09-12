@@ -55,3 +55,5 @@ scenarios. Both outputs are JSON serializable. The planner itself does not
 connect to Exasol and must not accept or verify human evidence; Harini's API
 creates a new incident version only after a human accepts it, then triggers
 deterministic reassessment.
+
+See `HANDOFF.md` for the exact adapter shape and API integration boundary.

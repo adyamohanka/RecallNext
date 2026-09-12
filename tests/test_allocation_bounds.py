@@ -70,6 +70,41 @@ def test_empty_feasible_set_is_unresolved_not_excluded():
     assert all(item["status"] == UNRESOLVED for item in decisions)
 
 
+def test_infeasible_quantity_balance_is_unresolved_not_a_false_exclusion():
+    scenarios = [[{"shipment_id": "S-1", "lot_id": "OTHER", "quantity_cases": 11}]]
+
+    decisions = classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
+
+    assert all(item["status"] == UNRESOLVED for item in decisions)
+    assert all(item["solver_status"] == "INFEASIBLE_CANDIDATE_ALLOCATION" for item in decisions)
+
+
+def test_duplicate_candidate_rows_that_overfill_a_shipment_are_unresolved():
+    scenarios = [
+        [
+            {"shipment_id": "S-1", "lot_id": "OTHER", "quantity_cases": 6},
+            {"shipment_id": "S-1", "lot_id": "OTHER", "quantity_cases": 6},
+        ]
+    ]
+
+    decisions = classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
+
+    assert all(item["status"] == UNRESOLVED for item in decisions)
+
+
+def test_mixed_container_scan_cannot_clear_a_shipment_without_homogeneity_evidence():
+    # The scan locates a recalled lot in one plausible allocation, but another
+    # allocation still puts it in the shipment. A single scan cannot exclude it.
+    scenarios = [
+        [{"shipment_id": "S-1", "lot_id": "RECALLED", "quantity_cases": 4}],
+        [{"shipment_id": "S-1", "lot_id": "OTHER", "quantity_cases": 4}],
+    ]
+
+    decisions = classify_shipments([], SHIPMENTS, scenarios, ["RECALLED"])
+
+    assert decisions[0]["status"] == POSSIBLE_INCLUSION
+
+
 def test_tiny_oracle_and_planner_agree():
     expected = oracle_classify(
         SHIPMENTS,
