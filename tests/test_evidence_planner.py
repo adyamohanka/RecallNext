@@ -139,3 +139,37 @@ def test_partial_outcome_retains_omitted_shipment_uncertainty():
         },
     )
     assert ranked[0]["outcomes"][0]["remaining_unresolved_cases"] == 90
+
+
+def test_conditionally_valuable_action_is_not_dominated_by_cheaper_zero_score_action():
+    actions = [
+        {"action_id": "CHEAP", "estimated_minutes": 1},
+        {"action_id": "RICH", "estimated_minutes": 5},
+    ]
+    outcomes = {
+        "CHEAP": [{"outcome": "UNAVAILABLE", "decisions": []}],
+        "RICH": [
+            {"outcome": "UNAVAILABLE", "decisions": []},
+            {"outcome": "VALID", "decisions": [{"shipment_id": "S-1", "held_cases": 10, "status": EXCLUDED_UNDER_ASSUMPTIONS}]},
+        ],
+    }
+
+    ranked = rank_actions(CURRENT, actions, outcomes)
+
+    assert [item["action_id"] for item in ranked] == ["RICH", "CHEAP"]
+
+
+def test_partial_outcome_keeps_omitted_shipments_unresolved():
+    current = [
+        {"shipment_id": "S-1", "held_cases": 10, "status": POSSIBLE_INCLUSION},
+        {"shipment_id": "S-2", "held_cases": 7, "status": UNRESOLVED},
+    ]
+    outcomes = {
+        "A-1": [
+            {"outcome": "VALID", "decisions": [{"shipment_id": "S-1", "held_cases": 10, "status": EXCLUDED_UNDER_ASSUMPTIONS}]}
+        ]
+    }
+
+    ranked = rank_actions(current, [{"action_id": "A-1", "estimated_minutes": 1}], outcomes)
+
+    assert ranked[0]["outcomes"][0]["remaining_unresolved_cases"] == 7

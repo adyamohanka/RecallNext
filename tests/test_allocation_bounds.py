@@ -5,7 +5,7 @@ from planner.models import (
     POSSIBLE_INCLUSION,
     UNRESOLVED,
 )
-from planner.oracle import oracle_classify_scenarios
+from planner.oracle import oracle_classify, oracle_classify_scenarios
 
 LOTS = [
     {"lot_id": "SOURCE-A:RECALLED", "quantity_cases": 10},
@@ -135,3 +135,16 @@ def test_same_code_from_another_source_is_distinct():
         CONFIRMED_INCLUSION,
         EXCLUDED_UNDER_ASSUMPTIONS,
     ]
+
+
+def test_oracle_does_not_call_the_production_classifier(monkeypatch):
+    import planner.allocation_bounds
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("oracle must remain independent")
+
+    monkeypatch.setattr(planner.allocation_bounds, "classify_shipments", fail_if_called)
+
+    decisions = oracle_classify(SHIPMENTS, ["RECALLED"], {"RECALLED": 1}, ["RECALLED"])
+
+    assert [decision["status"] for decision in decisions] == [POSSIBLE_INCLUSION, POSSIBLE_INCLUSION]
