@@ -10,7 +10,7 @@ Synthetic deterministic benchmark. Timing fields are local runtime measurements,
 | Strategy | Runs | Mean resolved cases | Mean simulated minutes | False excluded cases |
 |---|---:|---:|---:|---:|
 | hold_all_plausible_inventory | 20 | 0.00 | 0.00 | 0 |
-| random_action_order | 20 | 7.00 | 3.70 | 0 |
+| random_action_order | 20 | 10.00 | 4.90 | 0 |
 | cheapest_first | 20 | 10.00 | 4.00 | 0 |
 | highest_directly_involved_quantity_first | 20 | 10.00 | 4.00 | 0 |
 | recallnext_ranking | 20 | 10.00 | 4.00 | 0 |

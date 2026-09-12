@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import random
-import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -27,8 +26,8 @@ def default_manifest() -> dict[str, Any]:
         "shipments": [{"shipment_id": "S-1", "quantity_cases": 5}, {"shipment_id": "S-2", "quantity_cases": 5}],
         "candidate_allocations": scenarios, "recalled_lot_ids": ["FARM-A:REC"],
         "actions": [
-            {"action_id": "ACT-LABEL-S1", "estimated_minutes": 4, "directly_involved_cases": 5},
-            {"action_id": "ACT-MANIFEST-S2", "estimated_minutes": 7, "directly_involved_cases": 5},
+            {"action_id": "ACT-LABEL-S1", "target_id": "S-1", "estimated_minutes": 4, "directly_involved_cases": 5},
+            {"action_id": "ACT-MANIFEST-S2", "target_id": "S-2", "estimated_minutes": 7, "directly_involved_cases": 5},
         ], "budgets": [4, 11], "seeds": [11, 17, 23, 29, 31],
     }
 
@@ -42,13 +41,38 @@ def _truth_cases(scenario: list[dict[str, Any]], recalled: set[str]) -> dict[str
     return {shipment: sum(row["quantity_cases"] for row in scenario if row["shipment_id"] == shipment and row["lot_id"] in recalled) for shipment in {row["shipment_id"] for row in scenario}}
 
 
+def _observation(action: Mapping[str, Any], scenario: list[dict[str, Any]]) -> tuple[tuple[str, str, int], ...]:
+    """Return only the rows observable through this action's declared target."""
+    target = str(action["target_id"])
+    return tuple(sorted(
+        (str(row["shipment_id"]), str(row["lot_id"]), int(row["quantity_cases"]))
+        for row in scenario
+        if str(row["shipment_id"]) == target
+    ))
+
+
+def _apply_observation(
+    action: Mapping[str, Any],
+    observed: tuple[tuple[str, str, int], ...],
+    scenarios: list[list[dict[str, Any]]],
+) -> list[list[dict[str, Any]]]:
+    """Keep candidates consistent with one action-specific observation only."""
+    return [scenario for scenario in scenarios if _observation(action, scenario) == observed]
+
+
 def _outcomes(manifest: Mapping[str, Any], scenarios: list[list[dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
     outcomes: dict[str, list[dict[str, Any]]] = {}
     for action in manifest["actions"]:
         action_id = action["action_id"]
         possibilities = []
+        seen: set[tuple[tuple[str, str, int], ...]] = set()
         for scenario in scenarios:
-            decisions = plan_incident(_payload(manifest, [scenario]))["decisions"]
+            observed = _observation(action, scenario)
+            if observed in seen:
+                continue
+            seen.add(observed)
+            filtered = _apply_observation(action, observed, scenarios)
+            decisions = plan_incident(_payload(manifest, filtered))["decisions"]
             possibilities.append({"outcome": "VALID", "decisions": decisions})
         possibilities.append({"outcome": "UNAVAILABLE", "decisions": []})
         outcomes[action_id] = possibilities
@@ -73,23 +97,28 @@ def run_sequential_benchmark(manifest: Mapping[str, Any] | None = None) -> dict[
     manifest = dict(manifest or default_manifest())
     cases = list(enumerate(manifest["candidate_allocations"]))
     runs: list[dict[str, Any]] = []
-    started = time.perf_counter()
     for truth_index, truth in cases:
         truth_cases = _truth_cases(truth, set(manifest["recalled_lot_ids"]))
         for budget in manifest["budgets"]:
             for seed in manifest["seeds"]:
                 for strategy in STRATEGIES:
-                    scenarios = list(manifest["candidate_allocations"]); remaining = list(manifest["actions"]); selected = []; outcomes = []; minutes = 0.0; planner_seconds = 0.0; trace = []
+                    scenarios = list(manifest["candidate_allocations"]); remaining = list(manifest["actions"]); selected = []; outcomes = []; minutes = 0.0; trace = []
                     while True:
-                        timed = plan_incident(_payload(manifest, scenarios)); decisions = timed["decisions"]; planner_seconds += timed["planner_seconds"]; trace.append(decisions)
+                        decisions = plan_incident(_payload(manifest, scenarios))["decisions"]; trace.append(decisions)
                         if all(item["status"] in RESOLVED_STATUSES for item in decisions): stop = "ALL_RESOLVED"; break
-                        choice = _select(strategy, remaining, decisions, manifest, scenarios, seed + len(selected));
+                        affordable = [item for item in remaining if minutes + item["estimated_minutes"] <= budget]
+                        if remaining and not affordable:
+                            stop = "BUDGET_EXHAUSTED"
+                            break
+                        choice = _select(strategy, affordable, decisions, manifest, scenarios, seed + len(selected))
                         if choice is None: stop = "NO_ACTION"; break
-                        if minutes + choice["estimated_minutes"] > budget: stop = "BUDGET_EXHAUSTED"; break
                         selected.append(choice["action_id"]); minutes += choice["estimated_minutes"]; remaining = [item for item in remaining if item["action_id"] != choice["action_id"]]
-                        # Truth is only used here by the benchmark oracle to choose the observed scenario.
-                        scenarios = [truth]; outcomes.append("VALID")
+                        # The oracle supplies only this action's observed rows, never a full scenario.
+                        observed = _observation(choice, truth)
+                        scenarios = _apply_observation(choice, observed, scenarios)
+                        outcomes.append("VALID")
                     final = trace[-1]; false_excluded = sum(truth_cases.get(item["shipment_id"], 0) for item in final if item["status"] == EXCLUDED_UNDER_ASSUMPTIONS)
                     total_truth = sum(truth_cases.values()); resolved = sum(item["held_cases"] for item in final if item["status"] in RESOLVED_STATUSES)
-                    runs.append({"fixture_version": manifest["fixture_version"], "truth_scenario_id": f"SCN-{truth_index:03d}", "strategy": strategy, "seed": seed, "budget_minutes": budget, "selected_action_ids": selected, "outcomes": outcomes, "stop_reason": stop, "false_excluded_cases": false_excluded, "affected_case_coverage": 1.0 if total_truth == 0 else (total_truth - false_excluded) / total_truth, "resolved_cases": resolved, "unnecessary_held_cases": sum(item["held_cases"] for item in final if truth_cases.get(item["shipment_id"], 0) == 0 and item["status"] not in RESOLVED_STATUSES), "action_count": len(selected), "simulated_minutes": minutes, "planner_seconds": planner_seconds, "evaluation_seconds": 0.0, "error": None})
-    return {"fixture_version": manifest["fixture_version"], "strategies": list(STRATEGIES), "budgets": manifest["budgets"], "seeds": manifest["seeds"], "truth_case_count": len(cases), "runs": runs, "evaluation_seconds": time.perf_counter() - started}
+                    runs.append({"fixture_version": manifest["fixture_version"], "truth_scenario_id": f"SCN-{truth_index:03d}", "strategy": strategy, "seed": seed, "budget_minutes": budget, "selected_action_ids": selected, "outcomes": outcomes, "stop_reason": stop, "false_excluded_cases": false_excluded, "affected_case_coverage": 1.0 if total_truth == 0 else (total_truth - false_excluded) / total_truth, "resolved_cases": resolved, "unnecessary_held_cases": sum(item["held_cases"] for item in final if truth_cases.get(item["shipment_id"], 0) == 0 and item["status"] not in RESOLVED_STATUSES), "action_count": len(selected), "simulated_minutes": minutes, "error": None})
+    # Intentionally excludes machine-dependent wall-clock values so artifacts are reproducible.
+    return {"fixture_version": manifest["fixture_version"], "strategies": list(STRATEGIES), "budgets": manifest["budgets"], "seeds": manifest["seeds"], "truth_case_count": len(cases), "runs": runs}
