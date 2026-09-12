@@ -42,7 +42,7 @@ python -m pip install -e ".[dev]"
 Set the real values reported for the deployment. Do not commit them:
 
 ```powershell
-$env:EXASOL_DSN = "<host>:<port>"
+$env:EXASOL_DSN = "<host>/<sha256-certificate-fingerprint>:<port>"
 $env:EXASOL_USER = "<database-user>"
 $env:EXASOL_PASSWORD = "<database-password>"
 $env:EXASOL_SCHEMA = "RECALLNEXT"
@@ -51,8 +51,10 @@ $env:EXASOL_ENCRYPTION = "true"
 
 The password is mandatory and no sample credential is used by the application.
 Encryption defaults to enabled. Do not disable certificate verification in
-code; use the connection information and certificate fingerprint supplied by
-the deployment.
+code or use PyExasol's `/nocertcheck` option. For a starter-kit deployment with
+a self-signed certificate, pin the SHA-256 certificate fingerprint in the DSN
+as shown above. For a deployment with a publicly trusted certificate, use the
+connection details supplied by that deployment.
 
 ## Verify and load
 
@@ -137,10 +139,18 @@ database, `lot_id` is always the source-qualified key
 
 - A missing required-source roster or missing coverage for any roster entry
   blocks scope narrowing.
+- Duplicate `LOT_SOURCE_ID:LOT_CODE` identities are detected by a blocking
+  data-quality rule because Exasol Personal does not support a `UNIQUE` table
+  constraint.
+- A recalled lot must belong to the incident product, and every in-scope
+  shipment-container mapping must reference an existing container.
 - A raw candidate edge cannot be passed off as a feasible scenario.
 - Unknown timestamps broaden candidates and block narrowing.
 - Negative or fractional case quantities are rejected.
 - Duplicate scenario/shipment/lot rows are rejected rather than double-counted.
+- Scenario persistence checks the canonical Exasol completeness status and
+  rejects shipment/lot pairs outside the incident's candidate view before any
+  existing result is replaced.
 - A non-success solver result remains visible and leads the planner to
   `UNRESOLVED`.
 - Persisting decisions accepts only the four fixed RecallNext status values.

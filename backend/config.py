@@ -79,12 +79,20 @@ class ExasolConfig:
             raise ConfigurationError(
                 "EXASOL_DSN must include the host and port reported by `exasol info`"
             )
+        if "/nocertcheck" in dsn.lower():
+            raise ConfigurationError(
+                "EXASOL_DSN must validate the server certificate; use its SHA-256 "
+                "fingerprint instead of /nocertcheck"
+            )
+        encryption = _boolean(values, "EXASOL_ENCRYPTION", True)
+        if not encryption:
+            raise ConfigurationError("EXASOL_ENCRYPTION must remain true")
         return cls(
             dsn=dsn,
             user=_required(values, "EXASOL_USER"),
             password=_required(values, "EXASOL_PASSWORD"),
             schema=schema,
-            encryption=_boolean(values, "EXASOL_ENCRYPTION", True),
+            encryption=encryption,
             compression=_boolean(values, "EXASOL_COMPRESSION", True),
             query_timeout_seconds=_positive_integer(
                 values, "EXASOL_QUERY_TIMEOUT_SECONDS", 30

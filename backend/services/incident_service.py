@@ -257,8 +257,55 @@ class IncidentService:
             raise ContractError("solver_status must be non-empty")
         if normalized_status == PLANNER_SUCCESS and not candidate_allocations:
             raise ContractError("SUCCESS requires at least one feasible scenario")
+        if normalized_status == PLANNER_SUCCESS and not candidate_universe_complete:
+            raise ContractError("SUCCESS requires a complete candidate universe")
+        if normalized_status != PLANNER_SUCCESS and candidate_allocations:
+            raise ContractError(
+                "a non-success solver result cannot contain allocations"
+            )
         if not isinstance(model_version, str) or not model_version.strip():
             raise ContractError("model_version must be non-empty")
+
+        parameters = {
+            "incident_id": incident_id,
+            "incident_version": incident_version,
+        }
+        universe = _one(
+            self.connection.execute(
+                "SELECT CANDIDATE_UNIVERSE_COMPLETE "
+                "FROM RECALLNEXT.V_CANDIDATE_UNIVERSE_STATUS "
+                "WHERE INCIDENT_ID = {incident_id} "
+                "AND INCIDENT_VERSION = {incident_version}",
+                parameters,
+            )
+        )
+        if universe is None:
+            raise ContractError("incident version has no canonical universe status")
+        canonical_complete = universe.get("candidate_universe_complete")
+        if not isinstance(canonical_complete, bool):
+            raise ContractError("canonical candidate universe status must be a boolean")
+        if candidate_universe_complete and not canonical_complete:
+            raise ContractError(
+                "caller cannot upgrade an incomplete canonical candidate universe"
+            )
+
+        allowed_pairs: set[tuple[str, str]] = set()
+        if candidate_allocations:
+            candidate_rows = _rows(
+                self.connection.execute(
+                    "SELECT DISTINCT SHIPMENT_ID, LOT_ID "
+                    "FROM RECALLNEXT.V_CANDIDATE_ALLOCATION "
+                    "WHERE INCIDENT_ID = {incident_id} "
+                    "AND INCIDENT_VERSION = {incident_version}",
+                    parameters,
+                )
+            )
+            for candidate in candidate_rows:
+                shipment_id = str(candidate.get("shipment_id", "")).strip()
+                lot_id = str(candidate.get("lot_id", "")).strip()
+                if not shipment_id or not lot_id:
+                    raise ContractError("canonical candidate identity cannot be empty")
+                allowed_pairs.add((shipment_id, lot_id))
 
         metadata_rows: list[tuple[object, ...]] = []
         allocation_rows: list[tuple[object, ...]] = []
@@ -300,6 +347,11 @@ class IncidentService:
                     raise ContractError(
                         "duplicate shipment/lot allocation within one scenario"
                     )
+                if key not in allowed_pairs:
+                    raise ContractError(
+                        "scenario shipment/lot pair is outside the canonical "
+                        "candidate universe"
+                    )
                 seen.add(key)
                 allocation_rows.append(
                     (
@@ -311,11 +363,6 @@ class IncidentService:
                         _integer(row.get("quantity_cases"), "quantity_cases"),
                     )
                 )
-
-        parameters = {
-            "incident_id": incident_id,
-            "incident_version": incident_version,
-        }
         self.connection.execute(
             "DELETE FROM RECALLNEXT.SCENARIO_ALLOCATION "
             "WHERE INCIDENT_ID = {incident_id} "

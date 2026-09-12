@@ -45,3 +45,20 @@ def test_rejects_invalid_boolean_and_timeout():
         ExasolConfig.from_environment(
             {**VALID_ENVIRONMENT, "EXASOL_QUERY_TIMEOUT_SECONDS": "0"}
         )
+
+
+def test_rejects_insecure_certificate_bypass():
+    with pytest.raises(ConfigurationError, match="certificate"):
+        ExasolConfig.from_environment(
+            {
+                **VALID_ENVIRONMENT,
+                "EXASOL_DSN": "example.invalid/nocertcheck:8563",
+            }
+        )
+
+
+def test_rejects_disabled_transport_encryption():
+    with pytest.raises(ConfigurationError, match="must remain true"):
+        ExasolConfig.from_environment(
+            {**VALID_ENVIRONMENT, "EXASOL_ENCRYPTION": "false"}
+        )

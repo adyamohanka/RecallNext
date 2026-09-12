@@ -1,19 +1,23 @@
 # Evaluation record
 
-This record separates completed offline QA from pending live database and
-strategy evaluation. The committed operational data is synthetic.
+This record separates four verification scopes: Adya's historical offline QA
+run, local checks on the synchronized PR #2 branch, completed live Exasol runs,
+and the still-pending investigation-strategy evaluation. All committed
+operational data is synthetic.
 
-## Revision under test
+## Revisions under test
 
 - Harini integration base: `6450a4189fe1a67be379cd915a29a3c59361c5e8`
-- Adya branch: `feat/adya-qa-docs-demo`
-- Dependency state: planner PR #1 is merged into canonical `main`; the Exasol
-  core and Harini integration remain part of Harini PR #3 at the tested base.
+- Historical Adya branch: `feat/adya-qa-docs-demo`
+- Current `main` merged into PR #2: `59bec09856552f1c16f51a8bfd91357839c4fac0`
+- Previous exact integrated functional head run: `8c83f836c06325b74bb40f827ac257dbce81e23f`
+- Current PR #2 exact functional head run: `64e4c51f1f7683ab3ca9cab401662a75b04bf236`
 
-Use the final pull-request head as the exact Adya revision. The raw output file
-records the base and commands; no result here is a live Exasol measurement.
+The raw offline output records Adya's original base and commands. It is
+historical evidence for that run, not a live Exasol measurement and not a claim
+that every later integration commit ran on the same Mac.
 
-## Machine and tools
+## Historical offline QA machine and tools
 
 | Item | Recorded value |
 |---|---|
@@ -26,9 +30,9 @@ records the base and commands; no result here is a live Exasol measurement.
 | Ruff | 0.16.7 |
 | Node.js | 24.19.0 |
 | pnpm | 11.19.0 |
-| Exasol | Pending team deployment |
+| Exasol | Not run on this Mac; see the separate AWS live record below |
 
-## Completed offline checks
+## Historical completed offline checks
 
 Fixture version: deterministic `data.generate_fixture` output and adversarial
 matrix `qa-v2`.
@@ -36,71 +40,107 @@ matrix `qa-v2`.
 | Check | Result | Evidence |
 |---|---|---|
 | Editable Python install | PASS | `docs/evaluation-results/offline-qa.txt` |
-| Python unit, workflow and API tests | PASS — 79 tests | `docs/evaluation-results/offline-qa.txt` |
+| Python unit, workflow and API tests | PASS - 79 tests | `docs/evaluation-results/offline-qa.txt` |
 | Deterministic fixture regeneration | PASS | `docs/evaluation-results/offline-qa.txt` |
 | Ruff lint | PASS | `docs/evaluation-results/offline-qa.txt` |
-| Ruff format check | PASS — 34 files | `docs/evaluation-results/offline-qa.txt` |
+| Ruff format check | PASS - 34 files | `docs/evaluation-results/offline-qa.txt` |
 | pnpm frozen-lockfile install | PASS | `docs/evaluation-results/offline-qa.txt` |
 | TypeScript and Vite production build | PASS | `docs/evaluation-results/offline-qa.txt` |
 | Local visual workflow smoke | PASS | `docs/evaluation-results/offline-qa.txt` |
 
 The test duration and Vite build time are local tool runtimes. They are not
-database, solver or end-to-end investigation latency.
+database, solver, or end-to-end investigation latency.
+
+## Current PR #2 synchronization checks
+
+The current `main` branch was merged into `sakthi/exasol-core` before applying
+the remaining Exasol safety fixes. The following checks ran on 13 September
+2026 in Windows with Python 3.11 and pnpm 11.19.0:
+
+| Check | Result |
+|---|---|
+| Python tests | PASS - 102 tests, one dependency deprecation warning |
+| Ruff lint | PASS |
+| Ruff format check on Python files changed from `main` | PASS - 7 files |
+| Deterministic fixture regeneration | PASS |
+| pnpm frozen-lockfile install | PASS |
+| TypeScript and Vite production build | PASS |
+
+The full repository format check also reports seven inherited planner files in
+current `main` that Ruff would reformat. PR #2 does not modify those files, so
+they were not mechanically reformatted in this Exasol-only change.
 
 ## Correctness scope exercised
 
-The offline suite covers:
+The combined suite covers:
 
 - all four fixed decision statuses and independently checked tiny bounds;
 - a 125-scenario closed synthetic inventory with four possible and two excluded
   shipments;
-- exact shipment and lot conservation, invalid edges, empty scenario sets and
-  configured enumeration limits, including a closed inventory with a
-  zero-quantity lot;
-- missing required source coverage and duplicate inventory identifiers;
+- exact shipment and lot conservation, invalid edges, empty scenario sets, and
+  configured enumeration limits, including a zero-quantity lot;
+- missing required source coverage, optional complete coverage, and duplicate
+  inventory identifiers;
+- recalled-lot product mismatch and a shipment mapping that references a
+  missing container;
 - source-qualified lot identity when two suppliers reuse one lot code;
-- mixed-container single-case evidence that tightens only the observed case and
-  cannot clear the remaining cases;
-- incompatible accepted label and pick-log evidence producing `CONFLICT` and
-  `UNRESOLVED`;
+- mixed-container single-case evidence that tightens only the observed case;
+- incompatible accepted evidence producing `CONFLICT` and `UNRESOLVED`;
 - rejected and unavailable evidence producing no narrowing;
-- version conflicts, proposals made stale by another acceptance, current
-  pending deduplication, resubmission after rejection or version advance, and
-  malformed facts;
-- accepted-evidence retraction rebuilding from active evidence and invalidating
-  a prior exclusion;
-- persistence rejection when status, bounds, solver status and completeness
+- stale proposals, current pending deduplication, and resubmission rules;
+- retraction rebuilding from all remaining active accepted or conflicting
+  evidence;
+- persistence rejection when status, bounds, solver status, and completeness
   metadata disagree;
 - fixture replacement refusal before deletion when another incident exists;
-- partial action outcomes and conditional-value dominance behavior.
+- timestamp serialization at the PyExasol wire boundary; and
+- rejection of certificate bypass and disabled transport encryption.
 
 These checks establish behavior only for the declared finite inputs. They do
-not certify food safety, prove warehouse-scale performance or validate the SQL
-on an Exasol engine.
+not certify food safety or prove warehouse-scale performance.
 
-## Pending live Exasol experiment
+## Live Exasol verification status
 
-The team deployment owner must supply a reachable Exasol Personal endpoint and
-sanitized connection guidance. Record:
+The Exasol boundary was run successfully on 12 September 2026 against a real,
+containerized Exasol Personal starter-kit deployment on AWS EC2. The first run
+verified revision `fcf2a83ee6d77c0cb47b6a7f1e16fcff4fc834bc`.
 
-- deployment type and Exasol version;
-- schema/fixture load result;
-- shipment, candidate-edge and blocking-issue counts;
-- exact SQL revision;
-- candidate query time, planner time and end-to-end time separately;
-- repetition and cold/warm-run method.
+The same load, smoke, and safety checks were repeated on 13 September 2026 at
+integrated functional head `8c83f836c06325b74bb40f827ac257dbce81e23f`,
+then again at the current PR #2 functional head
+`64e4c51f1f7683ab3ca9cab401662a75b04bf236`. The latest run established:
 
-The fixture contract expects six shipments, fourteen candidate edges, complete
-coverage and zero blocking issues. These values remain expected until
-`python -m data.load_fixture` and `python -m backend.smoke` succeed on the live
-deployment. The web API currently reads the committed CSV fixture; it must not
-be described as Exasol-backed.
+- Exasol image `docker.io/exasol/nano:2026.2.0-nano.3-amd64`;
+- successful schema and synthetic-fixture loading;
+- six shipments and fourteen candidate edges;
+- zero blocking data-quality issues;
+- `candidate_universe_complete: true`;
+- encrypted PyExasol transport with a pinned certificate fingerprint;
+- recalled-lot product mismatch and missing-container blockers;
+- rejection of a caller attempt to upgrade canonical completeness; and
+- rejection of a scenario shipment/lot pair outside the candidate view.
+
+The latest smoke run measured 164.668 ms for the snapshot query and 79.505
+ms for the candidate-edge query. These are single-run database timings over the
+small synthetic fixture, not a performance benchmark. All exact probe rows were
+removed and the clean post-probe read returned the original counts. The earlier
+`8c83f83` run separately verified optional complete coverage and duplicate
+source-qualified lot detection.
+
+The credential-free execution record is in
+`docs/live-exasol-verification.md`. The documentation-only commit that records
+this result does not change the tested SQL, loader, configuration, or service
+code.
+
+The web API still reads the committed CSV fixture and labels that source. It
+must not be described as Exasol-backed until its database adapter is wired into
+the request path and tested.
 
 ## Pending investigation-strategy experiment
 
-The baseline module produces deterministic action orders. It does not yet run a
-sequential experiment that applies evidence, recomputes rankings and scores
-each strategy.
+The baseline module produces deterministic action orders and trace metrics. A
+final shared-fixture sequential experiment still needs to apply evidence,
+recompute rankings, and score each strategy under equal conditions.
 
 | Strategy | Current state |
 |---|---|
@@ -112,15 +152,13 @@ each strategy.
 | Full-information oracle | Tiny correctness utility only |
 
 A fair run must give every policy the same incidents, visible facts, obtainable
-evidence, realized outcomes and budget. Retain per-incident seeds, ties, errors
-and simple-baseline wins. Report false exclusions, affected-case coverage,
-unnecessary held cases, resolved cases, actions, simulated retrieval minutes,
-replay agreement and actual computation time.
+evidence, realized outcomes, and budget. Retain per-incident seeds, ties,
+errors, and simple-baseline wins. Report false exclusions, affected-case
+coverage, unnecessary held cases, resolved cases, actions, simulated retrieval
+minutes, replay agreement, and actual computation time.
 
 ## Known unavailable checks
 
-- No local `exasol` or `exakit` command and no team endpoint were available, so
-  schema compilation, SQL results and database timing were not run.
 - No live document model is connected. Example facts are labelled synthetic;
   no API credits were used.
 - The frontend has a production build gate and a recorded manual visual smoke,
@@ -132,7 +170,7 @@ replay agreement and actual computation time.
 
 ## Reporting rules
 
-Do not present expected counts as live database measurements. Do not claim a
-faster investigation until the paired sequential experiment supports it. Keep
-retrieval-minute assumptions separate from measured runtime, and never treat
-`EXCLUDED_UNDER_ASSUMPTIONS` as safe or released inventory.
+Do not present fixture expectations as live database measurements. Do not claim
+a faster investigation until the paired sequential experiment supports it.
+Keep retrieval-minute assumptions separate from measured runtime, and never
+treat `EXCLUDED_UNDER_ASSUMPTIONS` as safe or released inventory.

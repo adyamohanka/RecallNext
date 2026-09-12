@@ -58,13 +58,17 @@ remaining active evidence.”
 
 **Screen:** Real Exasol Personal command and sanitized result.
 
-“This is the actual candidate query on Exasol Personal [version]. It returned
-[actual row counts] in [measured database time]. The bounded planner took
-[measured solver time], and end-to-end reassessment took [measured total time].”
+"This is a live candidate query on the Exasol Personal starter-kit deployment.
+For the synthetic fixture, it returned six shipments and fourteen candidate
+edges with zero blockers and a complete candidate universe. The one recorded
+smoke run measured 164.668 milliseconds for the snapshot query and 79.505
+milliseconds for candidate edges."
 
-If the team cannot complete the live run, say: “The Exasol schema and smoke path
-are implemented, but live database validation remains pending,” and do not show
-invented numbers. The offline QA has 79 passing tests at the recorded revision.
+Use the sanitized output in `docs/live-exasol-verification.md` on screen. Do not
+describe these single-run query timings as a performance benchmark. Do not give
+a planner or end-to-end latency until that separate measurement has actually
+been recorded. The exact integrated functional head has 102 passing tests; the
+web demo remains a clearly labelled CSV-backed application.
 
 ## 2:40–3:00 — Limits and impact
 

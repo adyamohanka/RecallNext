@@ -4,12 +4,15 @@ from backend.contracts import ContractError
 from backend.services.incident_service import IncidentService
 
 
-class EmptyStatement:
+class RowsStatement:
+    def __init__(self, rows=()):
+        self.rows = list(rows)
+
     def fetchall(self):
-        return []
+        return self.rows
 
     def fetchone(self):
-        return None
+        return self.rows[0] if self.rows else None
 
 
 class PreparedStatement:
@@ -22,13 +25,29 @@ class PreparedStatement:
 
 
 class RecordingConnection:
-    def __init__(self):
+    def __init__(self, *, canonical_complete=True, candidate_pairs=None):
         self.executed = []
         self.prepared = []
+        self.canonical_complete = canonical_complete
+        self.candidate_pairs = candidate_pairs or {
+            ("S-100", "FARM-A:REC-2026-01"),
+            ("S-200", "FARM-A:REC-2026-01"),
+        }
 
     def execute(self, sql, parameters=None):
         self.executed.append((sql, parameters))
-        return EmptyStatement()
+        if "V_CANDIDATE_UNIVERSE_STATUS" in sql:
+            return RowsStatement(
+                [{"candidate_universe_complete": self.canonical_complete}]
+            )
+        if "V_CANDIDATE_ALLOCATION" in sql:
+            return RowsStatement(
+                [
+                    {"shipment_id": shipment_id, "lot_id": lot_id}
+                    for shipment_id, lot_id in sorted(self.candidate_pairs)
+                ]
+            )
+        return RowsStatement()
 
     def create_prepared_statement(self, sql):
         statement = PreparedStatement(sql)
@@ -65,7 +84,10 @@ def test_persists_scenarios_with_deterministic_ids_and_contract_fields():
         assumptions={"integer_cases": True},
     )
 
-    assert len(connection.executed) == 2
+    assert (
+        len([sql for sql, _ in connection.executed if sql.startswith("DELETE FROM")])
+        == 2
+    )
     assert len(connection.prepared) == 2
     metadata = connection.prepared[0].rows
     allocations = connection.prepared[1].rows
@@ -115,6 +137,87 @@ def test_failed_solver_can_be_persisted_without_fake_allocations():
     metadata = connection.prepared[0].rows
     assert metadata[0][2] == "SCN-ERROR"
     assert metadata[0][3:5] == (False, "TIMEOUT")
+
+
+def test_scenario_persistence_cannot_upgrade_canonical_completeness():
+    connection = RecordingConnection(canonical_complete=False)
+    service = IncidentService(connection)
+
+    with pytest.raises(ContractError, match="cannot upgrade"):
+        service.persist_scenarios(
+            "INC-DEMO-001",
+            1,
+            [
+                [
+                    {
+                        "shipment_id": "S-100",
+                        "lot_id": "FARM-A:REC-2026-01",
+                        "quantity_cases": 5,
+                    }
+                ]
+            ],
+            candidate_universe_complete=True,
+            solver_status="SUCCESS",
+            model_version="planner-v1",
+        )
+
+    assert not connection.prepared
+    assert all(not sql.startswith("DELETE FROM") for sql, _ in connection.executed)
+
+
+@pytest.mark.parametrize(
+    ("shipment_id", "lot_id"),
+    [
+        ("S-UNKNOWN", "FARM-A:REC-2026-01"),
+        ("S-100", "FARM-X:UNKNOWN"),
+    ],
+)
+def test_scenario_persistence_rejects_non_candidate_membership(shipment_id, lot_id):
+    connection = RecordingConnection()
+    service = IncidentService(connection)
+
+    with pytest.raises(ContractError, match="outside the canonical candidate universe"):
+        service.persist_scenarios(
+            "INC-DEMO-001",
+            1,
+            [
+                [
+                    {
+                        "shipment_id": shipment_id,
+                        "lot_id": lot_id,
+                        "quantity_cases": 5,
+                    }
+                ]
+            ],
+            candidate_universe_complete=True,
+            solver_status="SUCCESS",
+            model_version="planner-v1",
+        )
+
+    assert not connection.prepared
+    assert all(not sql.startswith("DELETE FROM") for sql, _ in connection.executed)
+
+
+def test_non_success_scenario_persistence_rejects_partial_allocations():
+    service = IncidentService(RecordingConnection())
+
+    with pytest.raises(ContractError, match="cannot contain allocations"):
+        service.persist_scenarios(
+            "INC-DEMO-001",
+            1,
+            [
+                [
+                    {
+                        "shipment_id": "S-100",
+                        "lot_id": "FARM-A:REC-2026-01",
+                        "quantity_cases": 5,
+                    }
+                ]
+            ],
+            candidate_universe_complete=False,
+            solver_status="TIMEOUT",
+            model_version="planner-v1",
+        )
 
 
 def test_decision_persistence_rejects_unsafe_status_and_invalid_bounds():
