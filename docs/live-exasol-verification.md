@@ -3,7 +3,7 @@
 RecallNext's Exasol boundary was verified on 12 September 2026 and repeated on
 13 September 2026 against a real, containerized Exasol Personal starter-kit
 deployment. The latest run exercised exact integrated functional head
-`64e4c51d77a9e13db76f29c908759aff630cd209`; it was not an offline simulation.
+`64e4c51f1f7683ab3ca9cab401662a75b04bf236`; it was not an offline simulation.
 The first live run at `fcf2a83ee6d77c0cb47b6a7f1e16fcff4fc834bc`
 and the prior integration run at
 `8c83f836c06325b74bb40f827ac257dbce81e23f` remain useful as revision-scoped

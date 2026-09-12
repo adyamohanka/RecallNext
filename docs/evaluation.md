@@ -11,7 +11,7 @@ operational data is synthetic.
 - Historical Adya branch: `feat/adya-qa-docs-demo`
 - Current `main` merged into PR #2: `59bec09856552f1c16f51a8bfd91357839c4fac0`
 - Previous exact integrated functional head run: `8c83f836c06325b74bb40f827ac257dbce81e23f`
-- Current PR #2 exact functional head run: `64e4c51d77a9e13db76f29c908759aff630cd209`
+- Current PR #2 exact functional head run: `64e4c51f1f7683ab3ca9cab401662a75b04bf236`
 
 The raw offline output records Adya's original base and commands. It is
 historical evidence for that run, not a live Exasol measurement and not a claim
@@ -108,7 +108,7 @@ verified revision `fcf2a83ee6d77c0cb47b6a7f1e16fcff4fc834bc`.
 The same load, smoke, and safety checks were repeated on 13 September 2026 at
 integrated functional head `8c83f836c06325b74bb40f827ac257dbce81e23f`,
 then again at the current PR #2 functional head
-`64e4c51d77a9e13db76f29c908759aff630cd209`. The latest run established:
+`64e4c51f1f7683ab3ca9cab401662a75b04bf236`. The latest run established:
 
 - Exasol image `docker.io/exasol/nano:2026.2.0-nano.3-amd64`;
 - successful schema and synthetic-fixture loading;
