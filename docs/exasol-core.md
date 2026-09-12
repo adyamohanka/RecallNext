@@ -148,6 +148,9 @@ database, `lot_id` is always the source-qualified key
 - Unknown timestamps broaden candidates and block narrowing.
 - Negative or fractional case quantities are rejected.
 - Duplicate scenario/shipment/lot rows are rejected rather than double-counted.
+- Scenario persistence checks the canonical Exasol completeness status and
+  rejects shipment/lot pairs outside the incident's candidate view before any
+  existing result is replaced.
 - A non-success solver result remains visible and leads the planner to
   `UNRESOLVED`.
 - Persisting decisions accepts only the four fixed RecallNext status values.
