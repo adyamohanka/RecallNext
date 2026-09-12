@@ -7,8 +7,8 @@ database fallback.
 
 ## What is implemented
 
-- `sql/001_schema.sql`: the shared traceability tables plus source-coverage,
-  scenario, and decision audit tables.
+- `sql/001_schema.sql`: the shared traceability tables plus the required-source
+  roster, source coverage, scenario, and decision audit tables.
 - `sql/002_views.sql`: blocking data-quality issues, candidate-universe
   completeness, and the flat planner-scenario contract.
 - `sql/003_candidate_generation.sql`: broad candidate edges, shipment impact,
@@ -17,7 +17,8 @@ database fallback.
   containers, six shipments, two missing pick references, and the same lot code
   under two different suppliers.
 - `data/load_fixture.py`: a transaction-controlled PyExasol loader that refuses
-  to overwrite the demo incident unless `--replace-demo` is explicit.
+  to overwrite the demo incident unless `--replace-demo` is explicit and the
+  schema contains no other incident.
 - `backend/services/incident_service.py`: incident, candidate, scenario,
   decision, and evidence-action data services.
 - `backend/contracts.py`: strict conversion of flat Exasol scenario rows into
@@ -72,8 +73,9 @@ python -m data.load_fixture
 ```
 
 The default load is non-destructive and fails if `INC-DEMO-001` already exists.
-The explicit `--replace-demo` option removes only identifiers declared by the
-committed synthetic fixture before reloading them.
+The explicit `--replace-demo` option is restricted to a demo-only schema. It
+aborts before deletion when any other incident exists because the schema's
+global shipment, container, lot and event identifiers do not record ownership.
 
 Run the read-only database smoke check:
 
@@ -94,8 +96,9 @@ performance.
 
 ## Candidate semantics
 
-`V_CANDIDATE_ALLOCATION` produces allowed edges and integer lower/upper
-quantities. It does not claim that each row is a complete historical scenario.
+`V_CANDIDATE_ALLOCATION` produces allowed edges, the exact container-pick group
+quantity, and integer lower/upper lot quantities. It does not claim that each
+row is a complete historical scenario.
 Unknown container lots match every compatible, chronologically possible lot.
 An unknown receipt or shipment time remains eligible and separately creates a
 blocking data-quality issue; it is not filtered out as impossible.
@@ -134,7 +137,8 @@ database, `lot_id` is always the source-qualified key
 
 ## Safety behavior
 
-- Missing source coverage blocks scope narrowing.
+- A missing required-source roster or missing coverage for any roster entry
+  blocks scope narrowing.
 - Duplicate `LOT_SOURCE_ID:LOT_CODE` identities are detected by a blocking
   data-quality rule because Exasol Personal does not support a `UNIQUE` table
   constraint.

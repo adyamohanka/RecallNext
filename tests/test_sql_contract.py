@@ -19,6 +19,7 @@ def test_schema_is_non_destructive_and_has_shared_contract_tables():
         "SHIPMENT",
         "SHIPMENT_CONTAINER",
         "EVENT",
+        "REQUIRED_SOURCE_SYSTEM",
         "EVIDENCE_ACTION",
         "EVIDENCE",
         "SHIPMENT_DECISION",
@@ -54,6 +55,8 @@ def test_flat_scenario_view_contains_grouping_and_safety_metadata():
         assert field in views
     assert "MISSING_SOURCE_COVERAGE" in views
     assert "NO_SOURCE_COVERAGE_DECLARED" in views
+    assert "NO_REQUIRED_SOURCE_DECLARED" in views
+    assert "MISSING_REQUIRED_SOURCE_COVERAGE" in views
     assert "NO_RECALLED_LOT_DECLARED" in views
     assert "UNKNOWN_RECALLED_LOT_REFERENCE" in views
     assert "LOT_IDENTITY_MISMATCH" in views
@@ -61,3 +64,8 @@ def test_flat_scenario_view_contains_grouping_and_safety_metadata():
     assert "HAVING COUNT(*) > 1" in views
     assert "SHIPMENT_QUANTITY_MISMATCH" in views
     assert "CONTAINER_OVERALLOCATED" in views
+
+
+def test_candidate_edges_expose_the_exact_group_pick_quantity():
+    candidate = _sql("003_candidate_generation.sql")
+    assert "SC.PICK_QUANTITY_CASES AS GROUP_QUANTITY_CASES" in candidate

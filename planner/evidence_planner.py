@@ -1,0 +1,154 @@
+"""One-step conservative ranking of obtainable evidence actions."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from typing import Any
+
+from .models import CONFIRMED_INCLUSION, EXCLUDED_UNDER_ASSUMPTIONS
+
+RESOLVED_STATUSES = frozenset({CONFIRMED_INCLUSION, EXCLUDED_UNDER_ASSUMPTIONS})
+NON_NARROWING_OUTCOMES = frozenset(
+    {"UNAVAILABLE", "ILLEGIBLE", "CONFLICTING", "REJECTED"}
+)
+
+
+def _value(item: Any, name: str, default: Any = None) -> Any:
+    return (
+        item.get(name, default)
+        if isinstance(item, Mapping)
+        else getattr(item, name, default)
+    )
+
+
+def _by_shipment(decisions: Iterable[Any]) -> dict[str, Any]:
+    return {str(_value(decision, "shipment_id")): decision for decision in decisions}
+
+
+def _resolved_cases(current: Any, future: Any) -> int:
+    if _value(current, "status") in RESOLVED_STATUSES:
+        return 0
+    if _value(future, "status") not in RESOLVED_STATUSES:
+        return 0
+    return int(_value(current, "held_cases", _value(current, "max_recalled_cases", 0)))
+
+
+def _outcome_metrics(current: list[Any], outcome: Mapping[str, Any]) -> dict[str, int]:
+    current_by_shipment = _by_shipment(current)
+    outcome_name = str(outcome.get("outcome", "VALID")).upper()
+    if outcome_name in NON_NARROWING_OUTCOMES:
+        future_by_shipment = current_by_shipment
+    else:
+        proposed = _by_shipment(outcome.get("decisions", []))
+        unknown = set(proposed) - set(current_by_shipment)
+        if unknown:
+            raise ValueError(f"outcome contains unknown shipments: {sorted(unknown)}")
+        future_by_shipment = {**current_by_shipment, **proposed}
+
+    resolved = excluded = confirmed = 0
+    for shipment_id, before in current_by_shipment.items():
+        after = future_by_shipment[shipment_id]
+        changed = _resolved_cases(before, after)
+        resolved += changed
+        if _value(after, "status") == EXCLUDED_UNDER_ASSUMPTIONS:
+            excluded += changed
+        if _value(after, "status") == CONFIRMED_INCLUSION:
+            confirmed += changed
+    remaining = sum(
+        int(_value(decision, "held_cases", 0))
+        for decision in future_by_shipment.values()
+        if _value(decision, "status") not in RESOLVED_STATUSES
+    )
+    return {
+        "resolved_cases": resolved,
+        "newly_excluded_cases": excluded,
+        "newly_confirmed_cases": confirmed,
+        "remaining_unresolved_cases": remaining,
+    }
+
+
+def _is_dominated(candidate: dict[str, Any], competitors: list[dict[str, Any]]) -> bool:
+    benefit_fields = (
+        "worst_case_resolved_cases_per_minute",
+        "conditional_worst_case_resolved_cases_per_minute",
+        "conditional_best_case_resolved_cases_per_minute",
+    )
+    for other in competitors:
+        if other is candidate:
+            continue
+        no_worse = all(other[field] >= candidate[field] for field in benefit_fields)
+        no_more_effort = other["estimated_minutes"] <= candidate["estimated_minutes"]
+        strictly_better = any(
+            other[field] > candidate[field] for field in benefit_fields
+        ) or (other["estimated_minutes"] < candidate["estimated_minutes"])
+        if no_worse and no_more_effort and strictly_better:
+            return True
+    return False
+
+
+def rank_actions(
+    current_decisions: Iterable[Any],
+    actions: Iterable[Any],
+    outcome_scenarios: Mapping[str, Iterable[Mapping[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Rank actions by conservative rate, then labelled valid-outcome rates."""
+    current = list(current_decisions)
+    ranked: list[dict[str, Any]] = []
+    for action in actions:
+        action_id = str(_value(action, "action_id"))
+        effort = _value(action, "estimated_minutes")
+        if (
+            not isinstance(effort, (int, float))
+            or isinstance(effort, bool)
+            or effort <= 0
+        ):
+            raise ValueError("estimated_minutes must be a positive number")
+        scenarios = list(outcome_scenarios.get(action_id, []))
+        metrics = [_outcome_metrics(current, scenario) for scenario in scenarios]
+        worst = min((metric["resolved_cases"] for metric in metrics), default=0)
+        valid_metrics = [
+            metric
+            for scenario, metric in zip(scenarios, metrics)
+            if str(scenario.get("outcome", "VALID")).upper()
+            not in NON_NARROWING_OUTCOMES
+        ]
+        conditional_worst = min((m["resolved_cases"] for m in valid_metrics), default=0)
+        conditional_best = max((m["resolved_cases"] for m in valid_metrics), default=0)
+        ranked.append(
+            {
+                "action_id": action_id,
+                "action_type": _value(action, "action_type"),
+                "target_id": _value(action, "target_id"),
+                "question": _value(action, "question"),
+                "estimated_minutes": effort,
+                "availability": _value(action, "availability", "UNKNOWN"),
+                "worst_case_resolved_cases": worst,
+                "conditional_worst_case_resolved_cases": conditional_worst,
+                "conditional_best_case_resolved_cases": conditional_best,
+                "worst_case_resolved_cases_per_minute": worst / effort,
+                "conditional_worst_case_resolved_cases_per_minute": conditional_worst
+                / effort,
+                "conditional_best_case_resolved_cases_per_minute": conditional_best
+                / effort,
+                "outcomes": [
+                    {"outcome": str(scenario.get("outcome", "VALID")).upper(), **metric}
+                    for scenario, metric in zip(scenarios, metrics)
+                ],
+            }
+        )
+    survivors = [item for item in ranked if not _is_dominated(item, ranked)]
+    survivors.sort(
+        key=lambda item: (
+            -item["worst_case_resolved_cases_per_minute"],
+            -item["conditional_worst_case_resolved_cases_per_minute"],
+            -item["conditional_best_case_resolved_cases_per_minute"],
+            item["estimated_minutes"],
+            item["action_id"],
+        )
+    )
+    for item in survivors:
+        item["ranking_reason"] = (
+            "Ranked by worst-case resolved cases per minute. Because retrieval may fail, "
+            "valid-outcome rates are labelled conditional tie-breakers."
+        )
+    return survivors

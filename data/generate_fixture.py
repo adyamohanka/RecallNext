@@ -75,6 +75,11 @@ TABLE_FIELDS: dict[str, tuple[str, ...]] = {
         "is_complete",
         "issue_detail",
     ),
+    "required_source_system": (
+        "incident_id",
+        "incident_version",
+        "source_system",
+    ),
     "evidence_action": (
         "action_id",
         "incident_id",
@@ -256,6 +261,18 @@ def build_fixture() -> dict[str, list[dict[str, str]]]:
                 "issue_detail": "",
             },
         ],
+        "required_source_system": [
+            {
+                "incident_id": "INC-DEMO-001",
+                "incident_version": "1",
+                "source_system": source_system,
+            }
+            for source_system in (
+                "ERP_DISPATCH",
+                "WMS_CONTAINERS",
+                "WMS_RECEIPTS",
+            )
+        ],
         "evidence_action": [
             {
                 "action_id": "ACT-LABEL-C100",
@@ -284,11 +301,11 @@ def build_fixture() -> dict[str, list[dict[str, str]]]:
                 "incident_id": "INC-DEMO-001",
                 "incident_version": "1",
                 "action_type": "PHYSICAL_SCAN",
-                "target_type": "CONTAINER",
-                "target_id": "C-200",
-                "question": "What lot code is on a traceable case remaining in C-200?",
+                "target_type": "SHIPMENT",
+                "target_id": "S-300",
+                "question": "What lot code is on one traceable case retained from shipment S-300?",
                 "estimated_minutes": "6",
-                "availability": "AVAILABLE",
+                "availability": "LIMITED",
             },
             {
                 "action_id": "ACT-MANIFEST-S200",
@@ -375,6 +392,12 @@ def validate_fixture(fixture: dict[str, list[dict[str, str]]]) -> None:
         int(row["quantity_cases"]) for row in fixture["shipment"]
     ):
         raise ValueError("lot and shipment quantities must balance")
+    required_sources = {
+        row["source_system"] for row in fixture["required_source_system"]
+    }
+    covered_sources = {row["source_system"] for row in fixture["source_coverage"]}
+    if not required_sources or required_sources != covered_sources:
+        raise ValueError("every required source system must declare coverage")
 
 
 def write_fixture(output_directory: Path) -> None:
