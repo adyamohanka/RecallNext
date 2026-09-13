@@ -4,6 +4,10 @@ RecallNext is an Exasol-powered prototype for food-recall investigations with in
 
 AI-assisted extraction may propose a structured fact. A human must accept it before deterministic reassessment creates a new incident version. The application never authorizes a physical stock release.
 
+Live deployment: https://recallnext.13-201-33-157.nip.io/
+
+Public visitors can explore the Exasol-backed incident and decisions. Evidence extraction and every state-changing action require the separately shared reviewer token.
+
 ## What works
 
 - deterministic generation of 125 feasible histories for the committed six-shipment fixture;
