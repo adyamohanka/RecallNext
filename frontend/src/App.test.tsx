@@ -17,6 +17,7 @@ const action = (id: string) => ({
 });
 const incident = {
   incident_id: "INC-DEMO-001", recalled_lots: ["LOT-1"], current_version: 1,
+  product_id: "PRODUCT-1", title: "Test recall", public_recall: null,
   snapshot_version: 1, model_version: "test", data_source: "SYNTHETIC_FIXTURE",
   data_source_detail: "Synthetic test data", summary: { feasible_scenarios: 2, solver_status: "SUCCESS" },
   latest_diff: [],
@@ -34,6 +35,7 @@ beforeEach(() => {
   signals = new Map();
   post = deferred<Response>();
   fetchMock = vi.fn((path: string, init?: RequestInit) => {
+    if (path === '/api/incidents') return Promise.resolve(response({ incidents: [{ incident_id: incident.incident_id }] }));
     if (path.endsWith('/example-fact')) {
       const id = path.split('/').at(-2)!;
       signals.set(id, init!.signal!);
@@ -44,6 +46,7 @@ beforeEach(() => {
     if (init?.method === 'POST') return post.promise;
     if (path.endsWith('/evidence-actions')) return Promise.resolve(response({ actions: [action('A'), action('B')] }));
     if (path.endsWith('/decisions')) return Promise.resolve(response({ decisions: [] }));
+    if (path.endsWith('/evidence')) return Promise.resolve(response({ evidence: [] }));
     return Promise.resolve(response(incident));
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -57,7 +60,7 @@ async function open() {
 }
 const factField = () => screen.getByLabelText('Proposed structured fact') as HTMLTextAreaElement;
 async function deliver(id: string, fact: object) {
-  await act(async () => { examples.get(id)!.resolve(response({ proposed_fact: fact })); });
+  await act(async () => { examples.get(id)!.resolve(response({ proposed_fact: fact, source_reference: `source/${id}` })); });
 }
 async function save() {
   fireEvent.click(screen.getByText('Save proposal'));
@@ -77,7 +80,9 @@ describe('example request lifecycle', () => {
     expect(factField().disabled).toBe(true);
     expect((screen.getByLabelText('Source reference') as HTMLInputElement).value).toBe('stored/source');
     expect((screen.getByRole('button', { name: /Inspect B/ }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByText(decision === 'accept' ? 'Accept & reassess' : 'Reject'));
+    fireEvent.change(screen.getByLabelText('Verified by'), { target: { value: 'Tester' } });
+    if (decision === 'reject') fireEvent.change(screen.getByLabelText('Rejection reason'), { target: { value: 'Unreadable' } });
+    fireEvent.click(screen.getByText(decision === 'accept' ? 'Accept and reassess' : 'Reject'));
     await waitFor(() => expect(fetchMock.mock.calls.some(([path]) => path.endsWith(`/EV-STORED/${decision}`))).toBe(true));
   });
 
@@ -126,6 +131,6 @@ describe('example request lifecycle', () => {
     await deliver('A', { quantity: 999 });
     expect(factField().value).toBe('{}');
     expect(factField().disabled).toBe(false);
-    expect((screen.getByText('Accept & reassess') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Accept and reassess') as HTMLButtonElement).disabled).toBe(true);
   });
 });

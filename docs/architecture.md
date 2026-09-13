@@ -3,10 +3,12 @@
 RecallNext separates relational candidate generation from bounded allocation reasoning. Exasol stores traceability records, runs quality checks and produces possible lot-to-shipment edges. Python accepts only a small component, enumerates complete integer allocations under conservation constraints and calculates shipment bounds across the complete result.
 
 ```text
-CSV / warehouse events
-        |
-        v
-Exasol schema and source-coverage gates
+Official openFDA recall     Private warehouse events
+          |                            |
+          +-------------+--------------+
+                        |
+                        v
+Exasol source context, schema and source-coverage gates
         |
         v
 V_CANDIDATE_ALLOCATION (possible edges, not histories)
@@ -26,9 +28,18 @@ FastAPI ---- React investigation UI
         v
 proposed evidence --human acceptance--> new incident version and diff
 accepted evidence --human retraction--> rebuild from active evidence
+        |
+        v
+Exasol WORKFLOW_STATE --restart--> restored review history and version
 ```
 
-The integrated demo adapter reconstructs the same candidate semantics from the committed CSVs and labels that source in every incident and health response. Live schema, fixture, query, and safety-probe validation is complete at the recorded revision. Connecting the API runtime to Exasol remains the next adapter step; the API must not claim that connection before it exists.
+The offline adapter reconstructs the candidate semantics from committed CSVs and
+labels that source in each incident and health response. In
+`EXASOL_PERSONAL` mode, the API loads the same contract from live database rows,
+persists review state in Exasol, and fails during startup if that database path
+is unavailable. Persisted writes compare the exact previously loaded state, so
+concurrent stale workers fail and resynchronize instead of losing evidence. The
+API never silently falls back to fixture mode.
 
 The scenario generator deliberately returns no scenarios if its search bound is exceeded. Classification independently validates shipment totals, known lot limits and closed-inventory conservation before allowing an exclusion.
 

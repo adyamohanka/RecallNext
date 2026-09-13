@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
+import os
 import threading
 import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from backend.config import ExasolConfig
+from backend.db import connect_exasol
+from backend.services.exasol_state import (
+    ConcurrentStateWriteError,
+    ExasolWorkflowStateStore,
+)
+from backend.services.incident_service import IncidentService
 from planner.allocation_bounds import classify_shipments
 from planner.evidence_planner import rank_actions
 from planner.scenario_generator import generate_feasible_scenarios
@@ -49,9 +58,111 @@ class RecallWorkflow:
         self.data_source_detail = (
             "Committed CSV fixture; Exasol is not active for this process."
         )
+        self.database_connected = False
+        self.public_recall: dict[str, Any] | None = None
+        self._state_store: ExasolWorkflowStateStore | None = None
         self._lock = threading.RLock()
         self._evidence: dict[str, dict[str, Any]] = {}
         self._load()
+
+    @classmethod
+    def from_exasol(
+        cls,
+        connection: Any,
+        incident_id: str,
+        incident_version: int,
+    ) -> RecallWorkflow:
+        """Build the visible workflow from live Exasol rows without a fallback."""
+
+        self = cls.__new__(cls)
+        self.data_directory = None
+        self.data_source = "EXASOL_PERSONAL"
+        self.database_connected = True
+        self._connection = connection
+        self._state_store = ExasolWorkflowStateStore(connection, incident_id)
+        self._lock = threading.RLock()
+        self._evidence = {}
+        self.data_quality_issues = []
+
+        service = IncidentService(connection)
+        records = service.load_workflow_records(incident_id, incident_version)
+        incident = records["incident"]
+        self.incident_id = str(incident["incident_id"])
+        self.snapshot_version = int(incident["snapshot_version"])
+        self.product_id = str(incident["product_id"])
+        self.public_recall = records["public_recall"]
+        self.data_source_detail = "Live Exasol Personal queries over the labelled synthetic warehouse fixture."
+        if self.public_recall:
+            self.data_source_detail += (
+                " Recall context was imported from the public openFDA enforcement API."
+            )
+
+        self.lots = self._normalize_integer_fields(records["lots"], ("quantity_cases",))
+        self.shipments = self._normalize_integer_fields(
+            records["shipments"], ("quantity_cases",)
+        )
+        self.containers = self._normalize_integer_fields(
+            records["containers"], ("quantity_cases",)
+        )
+        self.shipment_containers = self._normalize_integer_fields(
+            records["shipment_containers"], ("pick_quantity_cases",)
+        )
+        self.actions = self._normalize_integer_fields(
+            records["actions"], ("estimated_minutes",)
+        )
+        self.action_shipments = records["action_shipments"]
+        self.recalled_lot_ids = [str(row["lot_id"]) for row in records["recalled_lots"]]
+        self._container_by_id = {
+            str(row["container_id"]): row for row in self.containers
+        }
+        self._shipments_by_id = {str(row["shipment_id"]): row for row in self.shipments}
+        self._actions_by_id = {str(row["action_id"]): row for row in self.actions}
+        self.candidate_edges = self._normalize_integer_fields(
+            records["candidate_edges"],
+            (
+                "group_quantity_cases",
+                "min_quantity_cases",
+                "max_quantity_cases",
+            ),
+        )
+        self.data_quality_issues = [
+            ":".join(
+                str(issue.get(field, ""))
+                for field in ("issue_code", "entity_type", "entity_id")
+            )
+            for issue in records["data_quality_issues"]
+        ]
+        universe = records["candidate_universe"] or {}
+        complete = (
+            universe.get("candidate_universe_complete") is True
+            and not self.data_quality_issues
+        )
+        self._initialize_plan(
+            complete,
+            {
+                "inventory_balance_mode": "CLOSED",
+                "synthetic_data": True,
+                "warehouse_data": "LABELLED_SYNTHETIC_FIXTURE",
+                "recall_context": (
+                    "PUBLIC_OPENFDA" if self.public_recall else "NOT_IMPORTED"
+                ),
+                "data_quality_issues": list(self.data_quality_issues),
+            },
+        )
+        self._restore_state()
+        return self
+
+    def close(self) -> None:
+        connection = getattr(self, "_connection", None)
+        if connection is not None:
+            connection.close()
+            self._connection = None
+
+    @staticmethod
+    def _normalize_integer_fields(
+        rows: list[dict[str, Any]], fields: tuple[str, ...]
+    ) -> list[dict[str, Any]]:
+        return [{**row, **{field: int(row[field]) for field in fields}} for row in rows]
 
     def _unique_rows(
         self, rows: list[dict[str, Any]], identifier: str, label: str
@@ -102,6 +213,7 @@ class RecallWorkflow:
         incident = _read_csv(self.data_directory / "incident.csv")[0]
         self.incident_id = incident["incident_id"]
         self.snapshot_version = int(incident["snapshot_version"])
+        self.product_id = incident["product_id"]
         self.lots = self._unique_rows(
             _int_rows(_read_csv(self.data_directory / "lot.csv"), ("quantity_cases",)),
             "lot_id",
@@ -145,6 +257,20 @@ class RecallWorkflow:
         candidate_universe_complete = (
             self._coverage_is_complete() and not self.data_quality_issues
         )
+        self._initialize_plan(
+            candidate_universe_complete,
+            {
+                "inventory_balance_mode": "CLOSED",
+                "synthetic_data": True,
+                "warehouse_data": "LABELLED_SYNTHETIC_FIXTURE",
+                "recall_context": "NOT_IMPORTED",
+                "data_quality_issues": list(self.data_quality_issues),
+            },
+        )
+
+    def _initialize_plan(
+        self, candidate_universe_complete: bool, base_assumptions: dict[str, Any]
+    ) -> None:
         generated = generate_feasible_scenarios(
             self.candidate_edges,
             self.shipments,
@@ -153,11 +279,9 @@ class RecallWorkflow:
             closed_inventory=True,
         )
         assumptions = {
+            **base_assumptions,
             "candidate_universe_complete": generated["candidate_universe_complete"],
             "solver_status": generated["solver_status"],
-            "inventory_balance_mode": "CLOSED",
-            "synthetic_data": True,
-            "data_quality_issues": list(self.data_quality_issues),
         }
         decisions = classify_shipments(
             self.lots,
@@ -180,6 +304,76 @@ class RecallWorkflow:
                 "diagnostics": generated.get("diagnostics", {}),
             }
         }
+        fingerprint_inputs = {
+            "model_version": self.model_version,
+            "product_id": self.product_id,
+            "lots": self.lots,
+            "shipments": self.shipments,
+            "containers": self.containers,
+            "shipment_containers": self.shipment_containers,
+            "actions": self.actions,
+            "action_shipments": self.action_shipments,
+            "candidate_edges": self.candidate_edges,
+            "recalled_lot_ids": sorted(self.recalled_lot_ids),
+            "base_scenarios": self._base_scenarios,
+            "assumptions": assumptions,
+        }
+        self._base_fingerprint = hashlib.sha256(
+            json.dumps(
+                fingerprint_inputs,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest()
+
+    def _apply_stored_state(self, stored: dict[str, Any]) -> None:
+        if (
+            stored.get("schema_version") != 2
+            or stored.get("snapshot_version") != self.snapshot_version
+            or stored.get("base_fingerprint") != self._base_fingerprint
+        ):
+            raise WorkflowError(
+                "persisted workflow state does not match the current Exasol snapshot"
+            )
+        self.current_version = int(stored["current_version"])
+        self._evidence = dict(stored["evidence"])
+        self._versions = {
+            int(version): state for version, state in stored["versions"].items()
+        }
+
+    def _restore_state(self) -> None:
+        if self._state_store is None:
+            return
+        stored = self._state_store.load()
+        if stored is not None:
+            self._apply_stored_state(stored)
+
+    def _persist_state(self) -> None:
+        if self._state_store is None:
+            return
+        state = {
+            "schema_version": 2,
+            "snapshot_version": self.snapshot_version,
+            "base_fingerprint": self._base_fingerprint,
+            "current_version": self.current_version,
+            "evidence": self._evidence,
+            "versions": self._versions,
+        }
+        try:
+            self._state_store.save(state)
+        except ConcurrentStateWriteError as error:
+            stored = self._state_store.load()
+            if stored is None:
+                initial = self._versions[1]
+                self.current_version = 1
+                self._evidence = {}
+                self._versions = {1: initial}
+            else:
+                self._apply_stored_state(stored)
+            raise ConflictError(
+                "workflow state changed in another API worker; refresh and retry"
+            ) from error
 
     def _build_candidate_edges(self) -> list[dict[str, Any]]:
         lots_by_id = {lot["lot_id"]: lot for lot in self.lots}
@@ -337,12 +531,19 @@ class RecallWorkflow:
             status_counts[decision["status"]] += 1
         return {
             "incident_id": self.incident_id,
+            "product_id": self.product_id,
+            "title": (
+                self.public_recall.get("product_description")
+                if self.public_recall
+                else self.product_id
+            ),
             "recalled_lots": self.recalled_lot_ids,
             "snapshot_version": self.snapshot_version,
             "current_version": self.current_version,
             "model_version": self.model_version,
             "data_source": self.data_source,
             "data_source_detail": self.data_source_detail,
+            "public_recall": self.public_recall,
             "summary": {
                 "shipment_count": len(self.shipments),
                 "held_cases": sum(
@@ -590,7 +791,22 @@ class RecallWorkflow:
                 **payload,
             }
             self._evidence[evidence_id] = record
+            self._persist_state()
             return record.copy()
+
+    def evidence_log(self) -> dict[str, Any]:
+        def order(item: dict[str, Any]) -> tuple[int, str]:
+            version = item.get("accepted_into_version", item["incident_version"])
+            return int(version), str(item["evidence_id"])
+
+        return {
+            "incident_id": self.incident_id,
+            "current_version": self.current_version,
+            "evidence": [
+                item.copy()
+                for item in sorted(self._evidence.values(), key=order, reverse=True)
+            ],
+        }
 
     def has_action(self, action_id: str) -> bool:
         return action_id in self._actions_by_id
@@ -620,6 +836,7 @@ class RecallWorkflow:
                     "rejection_reason": reason,
                 }
             )
+            self._persist_state()
             return {
                 "evidence": evidence.copy(),
                 "incident_id": self.incident_id,
@@ -687,6 +904,7 @@ class RecallWorkflow:
                 "diagnostics": {"remaining_feasible_scenarios": len(filtered)},
             }
             self.current_version = next_version
+            self._persist_state()
             return {
                 "evidence": evidence.copy(),
                 "incident_id": self.incident_id,
@@ -777,6 +995,7 @@ class RecallWorkflow:
                 },
             }
             self.current_version = next_version
+            self._persist_state()
             return {
                 "evidence": evidence.copy(),
                 "incident_id": self.incident_id,
@@ -816,39 +1035,62 @@ class RecallWorkflow:
             or old["max_recalled_cases"] != after[shipment_id]["max_recalled_cases"]
         ]
 
-    @staticmethod
-    def example_fact(action_id: str) -> dict[str, Any]:
-        examples = {
-            "ACT-MANIFEST-S200": {
-                "fact_type": "shipment_allocation",
-                "shipment_id": "S-200",
-                "allocations": {"FARM-A:REC-2026-01": 5},
-            },
-            "ACT-LABEL-C100": {
-                "fact_type": "homogeneous_container",
-                "container_id": "C-100",
-                "lot_id": "FARM-A:REC-2026-01",
-                "homogeneity_verified": True,
-            },
-            "ACT-SCAN-C200": {
-                "fact_type": "observed_case",
-                "shipment_id": "S-300",
-                "lot_id": "FARM-A:GOOD-2026-01",
-                "scope": "SINGLE_CASE_ONLY",
-            },
-        }
-        return examples.get(
-            action_id,
-            {
-                "fact_type": "container_allocation",
-                "container_id": "C-200",
-                "shipment_allocations": {
-                    "S-300": {"FARM-A:GOOD-2026-01": 5},
-                    "S-400": {"FARM-A:REC-2026-01": 5},
-                },
-            },
-        )
+    def example_fact(self, action_id: str) -> dict[str, Any]:
+        action = self._actions_by_id.get(action_id)
+        if action is None:
+            raise WorkflowError("unknown action_id")
+        candidates = self._possible_facts(action, self._base_scenarios)
+        if not candidates:
+            raise WorkflowError("no feasible structured fact is available")
+        return min(candidates, key=lambda item: json.dumps(item, sort_keys=True))
+
+    def source_reference(self, action_id: str) -> str:
+        if not self.has_action(action_id):
+            raise WorkflowError("unknown action_id")
+        if self.database_connected:
+            return f"exasol://RECALLNEXT/EVIDENCE_ACTION/{action_id}"
+        return f"fixture://evidence-action/{action_id}"
 
 
 def default_workflow() -> RecallWorkflow:
+    mode = os.environ.get("RECALLNEXT_DATA_SOURCE", "SYNTHETIC_FIXTURE").strip().upper()
+    if mode == "EXASOL_PERSONAL":
+        config = ExasolConfig.from_environment()
+        connection = connect_exasol(config, autocommit=True)
+        try:
+            service = IncidentService(connection)
+            incidents = service.list_incidents()
+            if not incidents:
+                raise WorkflowError("Exasol contains no RecallNext incident")
+            requested_id = os.environ.get("RECALLNEXT_INCIDENT_ID", "").strip()
+            selected = next(
+                (
+                    row
+                    for row in incidents
+                    if not requested_id or row["incident_id"] == requested_id
+                ),
+                None,
+            )
+            if selected is None:
+                raise WorkflowError(f"incident not found in Exasol: {requested_id}")
+            requested_version = os.environ.get(
+                "RECALLNEXT_INCIDENT_VERSION", ""
+            ).strip()
+            incident_version = (
+                int(requested_version)
+                if requested_version
+                else int(selected["incident_version"])
+            )
+            return RecallWorkflow.from_exasol(
+                connection,
+                str(selected["incident_id"]),
+                incident_version,
+            )
+        except Exception:
+            connection.close()
+            raise
+    if mode != "SYNTHETIC_FIXTURE":
+        raise WorkflowError(
+            "RECALLNEXT_DATA_SOURCE must be SYNTHETIC_FIXTURE or EXASOL_PERSONAL"
+        )
     return RecallWorkflow(Path(__file__).resolve().parents[2] / "data" / "sample")

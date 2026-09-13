@@ -1,6 +1,8 @@
 # Safety and limitations
 
-RecallNext is an internal investigation prototype built on synthetic data. It
+RecallNext is an internal investigation prototype. The optional public recall
+context comes from the official openFDA food enforcement API. The private
+warehouse, container, lot-allocation and shipment records are synthetic. It
 does not certify food safety, determine legal compliance, issue public alerts
 or authorize a physical stock release. Qualified people remain responsible for
 holds, release decisions, notifications and regulatory procedures.
@@ -51,9 +53,9 @@ synthetic inventory window. It does not cover transformations,
 cross-contamination, returns, losses, opening inventory, arbitrary unit
 conversion or warehouse-scale optimization.
 
-- The running web application reads committed CSVs. The Exasol schema, loader,
-  queries and persistence path were verified separately against a real Exasol
-  deployment, but the API repository adapter remains unconnected.
+- The running web application supports an offline fixture mode and a fail-closed
+  `EXASOL_PERSONAL` mode. The latter loads the visible incident, candidates and
+  public recall context from the connected database.
 - Destructive demo-fixture replacement is allowed only when no other incident
   exists in the schema. The loader aborts before deletion in a shared schema.
 - The scenario enumerator is capped at 250,000 combinations and 10,000 feasible
@@ -63,17 +65,22 @@ conversion or warehouse-scale optimization.
 - Retrieval minutes are fixture estimates, not measured operational time.
 - Example document facts are synthetic. No live LLM or document service is
   connected.
-- Incident and evidence versions are in memory and reset at API restart.
-- Retraction is implemented in the API, uses reverse chronological order for
-  multiple reviewed facts, and is not exposed in the current UI.
+- In Exasol mode, incident versions, review records and retractions persist in
+  `WORKFLOW_STATE` and are restored only when the scenarios and every decision-
+  or validation-relevant input still match. Compare-and-swap writes reject stale
+  workers instead of overwriting newer audit state. Fixture mode remains
+  process-local.
+- Retraction is implemented in the API and UI and uses reverse chronological
+  order for multiple reviewed facts.
 - Sequential baseline evaluation is recorded against committed synthetic
-  scenarios. Single-run live Exasol query timings are recorded separately, but
-  they are not a performance benchmark.
+  scenarios. Five-run live Exasol, planner and API timings are recorded
+  separately, but they are not a warehouse-scale performance benchmark.
 
 ## Data and AI boundary
 
-All committed operational data must stay fictional and labelled synthetic. Do
-not commit credentials, private documents, database files, deployment state,
+All committed private operational records must stay fictional and labelled
+synthetic. Public records must retain their official source metadata. Do not
+commit credentials, private documents, database files, deployment state,
 generated secrets or personal information.
 
 An AI system may propose fields from a controlled document. It cannot accept
