@@ -4,9 +4,11 @@ The clean Adya QA run used macOS 26.5.1 on Apple silicon, Python 3.12.14,
 Node.js 24.19.0 and pnpm 11.19.0. Python 3.10+ is supported by project
 metadata; the current frontend and CI use Node 24 and pnpm 11.19.0.
 
-## Application demo
+## Offline fixture mode
 
-Tested project targets are Python 3.10 or newer, Node.js 24+, and pnpm 11. The committed web flow uses labelled synthetic CSV data and does not require a database credential or LLM key.
+Tested project targets are Python 3.10 or newer, Node.js 24+, and pnpm 11.
+Fixture mode uses labelled synthetic CSV data and does not require a database
+credential or LLM key.
 
 ```bash
 git clone https://github.com/harinidev1507/RecallNext.git
@@ -31,6 +33,12 @@ Open <http://127.0.0.1:5173>. The yellow notice and header badge must say that t
 
 Stop each development server with `Ctrl-C`.
 
+The repeatable browser test starts its own fixture API and frontend:
+
+```bash
+pnpm --dir frontend test:e2e
+```
+
 The following read-only calls should succeed while the API is running:
 
 ```bash
@@ -40,9 +48,9 @@ curl --fail http://127.0.0.1:8000/api/incidents/INC-DEMO-001/decisions
 curl --fail http://127.0.0.1:8000/api/incidents/INC-DEMO-001/evidence-actions
 ```
 
-Use the UI for the proposal and acceptance flow. The retraction endpoint is
-documented in `docs/api-contract.md`; the current UI does not expose a
-retraction control.
+Use the UI for proposal, acceptance, rejection and latest-reviewed-evidence
+retraction. The frontend discovers the incident from `GET /api/incidents`; it
+does not embed an incident ID, reviewer name, source path or product title.
 
 ## Exasol Personal path
 
@@ -69,12 +77,59 @@ python -m data.load_fixture
 python -m backend.smoke
 ```
 
+Import an official food enforcement record. An openFDA API key is optional for
+this one-record demo; pass the recall number at runtime.
+
+```bash
+python -m data.import_openfda \
+  --incident-id "<incident-id>" \
+  --recall-number "<openfda-recall-number>"
+```
+
+Start the API in fail-closed Exasol mode, then start the frontend using the same
+commands as above. Startup fails if the database, incident, public-source table
+or contract rows cannot be read.
+
+```bash
+export RECALLNEXT_DATA_SOURCE="EXASOL_PERSONAL"
+export RECALLNEXT_INCIDENT_ID="<incident-id>"
+python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
+```
+
+With both services running, the live browser check must see a connected Exasol
+source and official public recall context:
+
+```bash
+export RECALLNEXT_LIVE_BASE_URL="http://127.0.0.1:5173"
+pnpm --dir frontend test:e2e:live
+```
+
+`GET /api/health` must now report `database_connected: true`. Reviewed evidence
+and incident versions are stored in `RECALLNEXT.WORKFLOW_STATE` and restored
+after an API restart.
+
+Capture a fresh credential-free performance record with:
+
+```bash
+python -m data.measure_live \
+  --incident-id "<incident-id>" \
+  --reviewer "<reviewer-name>" \
+  --runs 15 \
+  --reset-before \
+  --reset-after \
+  --output docs/evaluation-results/live-final.json
+```
+
 `python -m data.load_fixture --replace-demo` is intentionally restricted to a
 demo-only schema. It refuses to delete anything when an incident other than
 `INC-DEMO-001` exists. Use a separate schema instead of forcing replacement in
 a shared database.
 
 The smoke check expects six shipments, 14 candidate edges, complete source coverage and no blocking quality issues. The sanitized result from the verified deployment is recorded in `docs/live-exasol-verification.md`. Record new measurements only after running them against the named deployment and revision.
+
+The public FDA record supplies recall number, classification, firm, product,
+code information, distribution and reason. It does not supply private warehouse
+container, pick or shipment records. RecallNext keeps that boundary visible.
 
 The loader uses `connection.execute_sql_script()`, so the project now requires PyExasol 2.2.3 or newer. Do not lower this bound without testing the schema loader.
 

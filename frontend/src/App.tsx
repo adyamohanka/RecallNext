@@ -208,7 +208,7 @@ export default function App() {
 
         {incident.latest_diff.length > 0 && <section className="diff panel"><div className="panel-title"><div><p className="eyebrow">Version {incident.current_version - 1} to {incident.current_version}</p><h2>Decision changes</h2></div></div>{incident.latest_diff.map((change) => <div className="diff-row" key={change.shipment_id}><strong>{change.shipment_id}</strong><StatusPill status={change.old_status} /><span className="diff-arrow">-&gt;</span><StatusPill status={change.new_status} /><span>{change.old_bounds.join("-")} cases to {change.new_bounds.join("-")} cases</span><small>{change.evidence_id}</small></div>)}</section>}
       </main>
-      <footer><span>RecallNext - labelled warehouse fixture with optional public openFDA context</span><span>Snapshot {incident.snapshot_version} - {incident.model_version}</span></footer>
+      <footer><span>RecallNext - synthetic private warehouse fixture with optional public openFDA context</span><span>Snapshot {incident.snapshot_version} - {incident.model_version}</span></footer>
     </div>
   );
 }

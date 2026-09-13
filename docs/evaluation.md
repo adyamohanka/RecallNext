@@ -6,8 +6,9 @@ Run `python -m planner.benchmark_cli` to regenerate the committed raw JSON and M
 
 This record separates four verification scopes: Adya's historical offline QA
 run, local checks on the merged application, completed live Exasol runs, and
-the committed synthetic investigation-strategy evaluation. All committed
-operational data is synthetic.
+the committed synthetic investigation-strategy evaluation. The public recall
+context is an official openFDA enforcement record. The private warehouse,
+container, lot-allocation and shipment records remain explicitly synthetic.
 
 ## Revisions under test
 
@@ -134,9 +135,34 @@ The credential-free execution record is in
 this result does not change the tested SQL, loader, configuration, or service
 code.
 
-The web API still reads the committed CSV fixture and labels that source. It
-must not be described as Exasol-backed until its database adapter is wired into
-the request path and tested.
+## Final Exasol-backed application measurement
+
+On 13 September 2026, the visible FastAPI workflow was run with
+`RECALLNEXT_DATA_SOURCE=EXASOL_PERSONAL` against the encrypted,
+certificate-pinned Exasol Personal deployment. The database contained the
+six-shipment synthetic warehouse fixture and official openFDA recall context
+`H-1259-2026`. The raw result is in
+`docs/evaluation-results/live-final.json`.
+
+| Measured path | Runs | Median | p95 |
+|---|---:|---:|---:|
+| Exasol incident snapshot | 5 | 1017.404 ms | 3157.902 ms |
+| Exasol candidate edges | 5 | 240.035 ms | 247.363 ms |
+| Complete scenario enumeration | 5 | 808.680 ms | 1235.980 ms |
+| API incident read after initialization | 5 | 1.080 ms | 5.158 ms |
+| API decision read after initialization | 5 | 0.961 ms | 1.281 ms |
+| API evidence ranking after initialization | 5 | 40.228 ms | 41.794 ms |
+
+Application initialization took 3747.735 ms. A proposal took 173.241 ms,
+human acceptance plus Exasol persistence took 162.389 ms, and a fresh workflow
+reconstruction restored version 2 in 2970.808 ms. Retraction plus persistence
+took 202.501 ms, and a second reconstruction restored retracted version 3 in
+4911.399 ms.
+
+These are five-run measurements of one small bounded fixture over an SSH
+tunnel, not warehouse-scale throughput claims. API read timings exclude
+startup. The measurement reset the exact incident state after completion so
+the demo starts at version 1.
 
 ## Sequential investigation-strategy experiment
 
@@ -160,16 +186,17 @@ coverage, unnecessary held cases, resolved cases, actions, simulated retrieval
 minutes, and replay agreement. Machine-dependent computation timings are
 reported separately rather than committed in deterministic benchmark artifacts.
 
-## Known unavailable checks
+## Known unavailable integrations
 
 - No live document model is connected. Example facts are labelled synthetic;
-  no API credits were used.
-- The frontend has a production build gate and a recorded manual visual smoke,
-  but no repeatable browser automation suite.
-- Retraction is available through the API and covered by tests; the current UI
-  has no retraction control.
-- Evidence and incident versions are stored in process memory and reset when
-  the API restarts.
+  no API credits were used and no rule-based parser is presented as an LLM.
+- The frontend has eight component tests, a production build gate, a repeatable
+  full browser workflow test, and a separate live Exasol browser-source check.
+- The visible UI includes retraction. In Exasol-backed mode, reviewed evidence,
+  versions and retractions survive API workflow reconstruction and restart.
+- No production ERP or WMS connector is included. The warehouse side is a
+  deterministic synthetic fixture because public recall data does not expose a
+  distributor's private pick, container and shipment records.
 
 ## Reporting rules
 

@@ -1,15 +1,17 @@
 # Three-minute demo script
 
-Record only after the live Exasol segment and final values are verified. Replace
-every bracketed database cue with the actual result or remove that claim.
+Target length: 2 minutes 55 seconds. All numbers below come from the committed
+live result or deterministic fixture.
 
 ## 0:00–0:20 — Problem
 
 **Screen:** Incident header and recalled lot.
 
-“A distributor knows one supplier lot is recalled, but two container mappings
-are incomplete. RecallNext asks which obtainable record is most useful to check
-next. This demo uses synthetic warehouse data.”
+“An official FDA recall tells a distributor which product and lot are affected,
+but it does not contain that distributor's private container and shipment
+history. RecallNext asks which missing warehouse record is most useful to check
+next. The public recall shown here is real; the private warehouse demo is
+synthetic and labelled.”
 
 ## 0:20–0:45 — Initial uncertain hold
 
@@ -42,7 +44,7 @@ name and explicitly accepts it.”
 
 Save first and show that the incident remains at version 1. Then accept.
 
-## 1:45–2:10 — Decision diff
+## 1:45-2:08 - Decision diff and retraction
 
 **Screen:** Version 1 → 2 diff for S-200.
 
@@ -50,34 +52,32 @@ Save first and show that the incident remains at version 1. Then accept.
 from possible inclusion to the status justified by the reviewed manifest. The
 diff retains the evidence reference and both bounds.”
 
-Show retraction through the tested API if it is included in the final capture:
-“Withdrawing that source creates version 3 and restores uncertainty from the
-remaining active evidence.”
+Click retract in the UI: “Withdrawing that source creates version 3 and restores
+uncertainty from the remaining active evidence. The review log and version are
+persisted in Exasol, so reconstruction does not erase the audit trail.”
 
-## 2:10–2:40 — Exasol and correctness
+## 2:08-2:35 - Exasol and measured proof
 
 **Screen:** Real Exasol Personal command and sanitized result.
 
-"This is a live candidate query on the Exasol Personal starter-kit deployment.
-For the synthetic fixture, it returned six shipments and fourteen candidate
-edges with zero blockers and a complete candidate universe. The one recorded
-smoke run measured 164.668 milliseconds for the snapshot query and 79.505
-milliseconds for candidate edges."
+“The visible API is running on Exasol Personal with encrypted, pinned transport.
+Five live runs returned six shipments, fourteen candidate edges and 125 complete
+histories. Median database times were 1.017 seconds for the incident snapshot
+and 240 milliseconds for candidate edges. Complete scenario enumeration took a
+median 809 milliseconds. Human acceptance persisted in 162 milliseconds, and a
+fresh workflow reconstruction restored it from Exasol.”
 
-Use the sanitized output in `docs/live-exasol-verification.md` on screen. Do not
-describe these single-run query timings as a performance benchmark. Do not give
-a planner or end-to-end latency until that separate measurement has actually
-been recorded. The exact integrated functional head has 102 passing tests; the
-web demo remains a clearly labelled CSV-backed application.
+Show `docs/evaluation-results/live-final.json`. Describe these as small-fixture
+measurements over an SSH tunnel, not warehouse-scale results.
 
-## 2:40–3:00 — Limits and impact
+## 2:35-2:55 - Limits and impact
 
 **Screen:** Limitations slide.
 
-“RecallNext is a bounded decision-support prototype. It uses synthetic data,
-ranks one step ahead and never releases stock. Its value is a replayable queue
-of missing evidence with explicit uncertainty. The next validation is testing
-record availability and acceptance rules with a warehouse or quality expert.”
+“RecallNext is bounded decision support. It ranks one step ahead and never
+releases stock automatically. There is no live LLM or production ERP connector
+in this build. Its value is a replayable queue of missing evidence with explicit
+uncertainty, ready for validation with a warehouse or quality team.”
 
 Before committing the video, confirm its duration is at most three minutes,
 links and audio work, the synthetic-data notice is visible, and no credential,

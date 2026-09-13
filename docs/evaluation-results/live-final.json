@@ -1,0 +1,72 @@
+{
+  "measured_at_utc": "2026-09-13T09:34:48Z",
+  "data_source": "EXASOL_PERSONAL",
+  "database": {
+    "schema": "RECALLNEXT",
+    "encrypted": true,
+    "incident_snapshot": {
+      "runs": 5,
+      "median_ms": 1017.404,
+      "p95_ms": 3157.902,
+      "min_ms": 690.977,
+      "max_ms": 3157.902
+    },
+    "candidate_edges": {
+      "runs": 5,
+      "median_ms": 240.035,
+      "p95_ms": 247.363,
+      "min_ms": 225.393,
+      "max_ms": 247.363
+    }
+  },
+  "planner": {
+    "complete_scenario_enumeration": {
+      "runs": 5,
+      "median_ms": 808.68,
+      "p95_ms": 1235.98,
+      "min_ms": 749.542,
+      "max_ms": 1235.98
+    }
+  },
+  "api": {
+    "initialization_ms": 3747.735,
+    "incident": {
+      "runs": 5,
+      "median_ms": 1.08,
+      "p95_ms": 5.158,
+      "min_ms": 0.976,
+      "max_ms": 5.158
+    },
+    "decisions": {
+      "runs": 5,
+      "median_ms": 0.961,
+      "p95_ms": 1.281,
+      "min_ms": 0.919,
+      "max_ms": 1.281
+    },
+    "evidence_actions": {
+      "runs": 5,
+      "median_ms": 40.228,
+      "p95_ms": 41.794,
+      "min_ms": 37.674,
+      "max_ms": 41.794
+    }
+  },
+  "review_lifecycle": {
+    "proposal_ms": 173.241,
+    "accept_and_persist_ms": 162.389,
+    "restart_and_restore_ms": 2970.808,
+    "restored_version": 2,
+    "retract_and_persist_ms": 202.501,
+    "second_restart_and_restore_ms": 4911.399,
+    "restored_retracted_version": 3
+  },
+  "scope": {
+    "incident_id": "INC-DEMO-001",
+    "shipments": 6,
+    "candidate_edges": 14,
+    "feasible_scenarios": 125,
+    "warehouse_fixture_is_synthetic": true,
+    "public_recall_context": "H-1259-2026"
+  }
+}

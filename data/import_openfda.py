@@ -58,7 +58,13 @@ def import_recall(
         "distribution_pattern": str(record.get("distribution_pattern", "")),
         "reason_for_recall": str(record.get("reason_for_recall", "")),
         "source_url": (
-            f"{BASE_ENDPOINT}?search=recall_number:{urllib.parse.quote(record['recall_number'])}"
+            f"{BASE_ENDPOINT}?"
+            + urllib.parse.urlencode(
+                {
+                    "search": f'recall_number:"{record["recall_number"]}"',
+                    "limit": "1",
+                }
+            )
         ),
         "dataset_last_updated": dataset_last_updated,
         "fetched_at": datetime.now(timezone.utc).replace(tzinfo=None),

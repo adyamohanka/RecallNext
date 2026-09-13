@@ -20,8 +20,8 @@ context. It is not an endorsement or certification of RecallNext.
 the obtainable record with the most decision value, require human review, then
 create a versioned decision diff.
 
-**Visual:** `uncertain scope → ranked evidence → proposal → human acceptance →
-recompute → diff/retraction`.
+**Visual:** `uncertain scope -> ranked evidence -> proposal -> human acceptance ->
+recompute -> diff/retraction`.
 
 **Demo fact:** The committed synthetic fixture has six five-case shipments and
 125 complete scenarios. Four start as possible inclusions and two are excluded
@@ -46,15 +46,17 @@ Avoid universal novelty or competitor claims.
 ## 4. Exasol architecture
 
 **Message:** Exasol owns relational schema, source-coverage checks, candidate
-generation, aggregation and persisted history. Bounded Python reasoning turns a
-small complete candidate component into scenarios and decision bounds. The API
-currently uses a labelled CSV adapter.
+generation, aggregation and persisted review history. Bounded Python reasoning
+turns a small complete candidate component into scenarios and decision bounds.
+The visible API fails closed in Exasol mode instead of falling back to CSV.
 
-**Visual:** Warehouse data → Exasol SQL → complete bounded scenarios → planner →
-API/UI.
+**Visual:** Warehouse data -> Exasol SQL -> complete bounded scenarios -> planner
+-> API/UI.
 
-**Proof required:** Show one live Exasol Personal query, version, row counts and
-measured database time. Remove that claim if the live run is unavailable.
+**Measured proof:** Five live runs returned six shipments, fourteen candidate
+edges, 125 complete scenarios and zero blockers. Median times were 1017.404 ms
+for the incident snapshot, 240.035 ms for candidate edges and 808.680 ms for
+complete scenario enumeration over the SSH tunnel.
 
 ## 5. Correctness and evaluation
 
@@ -63,11 +65,13 @@ contradictions, bad scenarios, timeouts and retractions cannot preserve an
 unjustified exclusion.
 
 **Current evidence:** 79 offline tests on the historical Adya QA environment and
-106 tests on the merged application revision, including API workflow and a
-separate tiny oracle. The pnpm production build passes. The real Exasol boundary
-run returned six shipments, fourteen candidate edges, zero blockers, and a
-complete universe. Sequential strategy measurements are recorded against the
-committed synthetic benchmark fixture.
+106 tests on the final application branch, including API workflow and a
+separate tiny oracle. Eight frontend component tests, the pnpm production build,
+one full browser workflow test and one live Exasol browser check pass. The real
+Exasol-backed workflow
+restored an accepted decision after one reconstruction and restored a retracted
+decision after a second reconstruction. Sequential strategy measurements are
+recorded against the committed synthetic benchmark fixture.
 
 **Figures after evaluation:** false exclusions within the declared scope,
 coverage, held cases, action count, simulated retrieval minutes, database time,
@@ -80,9 +84,9 @@ decision change, human acceptance, a decision diff, and one conflict or
 retraction. End with the next validation: test which records are actually
 obtainable and sufficient in a real warehouse workflow.
 
-**Visible limits:** synthetic data; bounded closed inventory; one-step ranking;
-CSV-backed API; no automatic release; no certification; AI limited to proposed
-fields.
+**Visible limits:** official public recall context plus synthetic private
+warehouse data; bounded closed inventory; one-step ranking; no automatic
+release; no certification; no live LLM; no production ERP connector.
 
 **Closing line:** “RecallNext identifies the missing fact most worth checking
 while showing exactly what remains uncertain.”

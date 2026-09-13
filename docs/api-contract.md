@@ -1,12 +1,14 @@
 # RecallNext API contract
 
-All endpoints use incident `INC-DEMO-001` in the current prototype. Unknown incidents return 404.
+Incident identifiers are discovered at runtime. Unknown incidents return 404.
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | Runtime and data-source status |
+| GET | `/api/incidents` | Discover incidents exposed by the configured data source |
 | GET | `/api/incidents/INC-DEMO-001` | Current version, recalled lots and summary |
 | GET | `/api/incidents/INC-DEMO-001/decisions` | Current or requested version’s shipment decisions |
+| GET | `/api/incidents/INC-DEMO-001/evidence` | Versioned evidence review and retraction log |
 | GET | `/api/incidents/INC-DEMO-001/evidence-actions` | Ranked and transparently dominated actions |
 | GET | `/api/incidents/INC-DEMO-001/diff?from_version=1&to_version=2` | Versioned decision changes |
 | GET | `/api/incidents/INC-DEMO-001/evidence-actions/{action_id}/example-fact` | Synthetic demo proposal for a selected action |
@@ -70,8 +72,10 @@ requires reverse chronological retraction when several reviewed facts exist.
 Retraction rebuilds the scenario set from the original snapshot and every
 still-active accepted fact; it does not treat the previous narrowed state as
 ground truth. The retraction creates a new incident version and its decision
-diff identifies the retracted evidence. This prototype keeps versions in
-memory, so they reset when the API process restarts.
+diff identifies the retracted evidence. In `EXASOL_PERSONAL` mode, evidence,
+versions and retractions are persisted in the `WORKFLOW_STATE` table and
+restored only when the stored base-scenario fingerprint matches the current
+database snapshot. Fixture mode is intentionally process-local.
 
 Before a proposal is stored, the API validates its fact shape, known identifiers, integer quantities, complete allocation totals, and compatibility with the selected evidence action. Invalid or mismatched facts return 422.
 

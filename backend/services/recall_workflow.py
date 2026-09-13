@@ -88,17 +88,13 @@ class RecallWorkflow:
         self.snapshot_version = int(incident["snapshot_version"])
         self.product_id = str(incident["product_id"])
         self.public_recall = records["public_recall"]
-        self.data_source_detail = (
-            "Live Exasol Personal queries over the labelled warehouse fixture."
-        )
+        self.data_source_detail = "Live Exasol Personal queries over the labelled synthetic warehouse fixture."
         if self.public_recall:
             self.data_source_detail += (
                 " Recall context was imported from the public openFDA enforcement API."
             )
 
-        self.lots = self._normalize_integer_fields(
-            records["lots"], ("quantity_cases",)
-        )
+        self.lots = self._normalize_integer_fields(records["lots"], ("quantity_cases",))
         self.shipments = self._normalize_integer_fields(
             records["shipments"], ("quantity_cases",)
         )
@@ -112,18 +108,12 @@ class RecallWorkflow:
             records["actions"], ("estimated_minutes",)
         )
         self.action_shipments = records["action_shipments"]
-        self.recalled_lot_ids = [
-            str(row["lot_id"]) for row in records["recalled_lots"]
-        ]
+        self.recalled_lot_ids = [str(row["lot_id"]) for row in records["recalled_lots"]]
         self._container_by_id = {
             str(row["container_id"]): row for row in self.containers
         }
-        self._shipments_by_id = {
-            str(row["shipment_id"]): row for row in self.shipments
-        }
-        self._actions_by_id = {
-            str(row["action_id"]): row for row in self.actions
-        }
+        self._shipments_by_id = {str(row["shipment_id"]): row for row in self.shipments}
+        self._actions_by_id = {str(row["action_id"]): row for row in self.actions}
         self.candidate_edges = self._normalize_integer_fields(
             records["candidate_edges"],
             (
@@ -163,10 +153,7 @@ class RecallWorkflow:
     def _normalize_integer_fields(
         rows: list[dict[str, Any]], fields: tuple[str, ...]
     ) -> list[dict[str, Any]]:
-        return [
-            {**row, **{field: int(row[field]) for field in fields}}
-            for row in rows
-        ]
+        return [{**row, **{field: int(row[field]) for field in fields}} for row in rows]
 
     def _unique_rows(
         self, rows: list[dict[str, Any]], identifier: str, label: str

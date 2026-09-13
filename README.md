@@ -10,12 +10,16 @@ AI-assisted extraction may propose a structured fact. A human must accept it bef
 - four conservative decision states: `CONFIRMED_INCLUSION`, `POSSIBLE_INCLUSION`, `EXCLUDED_UNDER_ASSUMPTIONS`, and `UNRESOLVED`;
 - outcome-aware evidence ranking, including unavailable outcomes and explicitly conditional benefits;
 - FastAPI endpoints for incident scope, decisions, evidence actions, proposal, acceptance, rejection, retraction and decision differences;
-- React investigation UI with text-and-colour statuses, source review and version changes;
+- React investigation UI with API-discovered incidents, text-and-colour statuses, source review, retraction and version changes;
 - Exasol schema, candidate-generation SQL, fixture loader, persistence services and a smoke check;
+- a fail-closed `EXASOL_PERSONAL` API mode that reads the visible workflow from Exasol and persists reviewed evidence across API restarts;
+- an openFDA importer that stores an official public recall record as context without claiming that public data contains private warehouse movements;
 - source-coverage and duplicate-inventory gates before scenario generation;
 - adversarial checks for invalid scenario coverage, conflicts, stale reviews, mixed containers, source-qualified lot identity, retraction and bounded computation.
 
-The integrated web application currently starts in `SYNTHETIC_FIXTURE` mode and says so in the health response and UI. Its planner and evidence workflow are real; its data comes directly from the committed CSV fixture. The separate Exasol loader and smoke path passed against a real Exasol Personal starter-kit deployment at the recorded revision. Do not describe the web API as Exasol-backed until its repository adapter is connected and tested.
+The web application starts in `SYNTHETIC_FIXTURE` mode for offline development. Set `RECALLNEXT_DATA_SOURCE=EXASOL_PERSONAL` with valid connection settings to make the visible API load the incident, candidates and public recall context from Exasol. This mode fails at startup if the real database is unavailable; it never falls back to CSV.
+
+The warehouse movements remain a labelled synthetic fixture because public recall feeds do not expose a company's private lot-to-shipment records. The optional public recall context is fetched from the official openFDA food enforcement API and stored in Exasol with source metadata.
 
 ## Demo flow
 
@@ -24,7 +28,7 @@ The integrated web application currently starts in `SYNTHETIC_FIXTURE` mode and 
 3. Select an action and review the synthetic proposed fact. Saving it does not alter decisions.
 4. Enter a reviewer name and accept it. The API checks the expected incident version, filters feasible histories and creates a decision diff.
 5. Submit an impossible source-qualified allocation to see a conflict create an `UNRESOLVED` version rather than a false exclusion.
-6. Retract accepted evidence through the API to rebuild the incident from the original snapshot and the remaining active evidence.
+6. Retract the latest reviewed evidence in the UI to rebuild the incident from the original snapshot and the remaining active evidence.
 
 ## Quick start
 
@@ -47,6 +51,19 @@ pnpm --dir frontend dev
 Open <http://127.0.0.1:5173>. Run `python -m pytest -q` and
 `pnpm --dir frontend build` before committing. The frontend uses pnpm only.
 
+To use the database-backed path, load the schema and fixture, import a selected
+openFDA food enforcement record, then start the API with:
+
+```bash
+export RECALLNEXT_DATA_SOURCE=EXASOL_PERSONAL
+export RECALLNEXT_INCIDENT_ID="<incident-id>"
+export EXASOL_DSN="<host>/<pinned-certificate-fingerprint>:<port>"
+export EXASOL_USER="<database-user>"
+export EXASOL_PASSWORD="<database-password>"
+python -m data.import_openfda --incident-id "<incident-id>" --recall-number "<recall-number>"
+python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
+```
+
 See [docs/run-guide.md](docs/run-guide.md) for Exasol setup, smoke checks and troubleshooting. The API payloads are documented in [docs/api-contract.md](docs/api-contract.md).
 
 ## Architecture
@@ -62,7 +79,7 @@ warehouse fixture / Exasol candidate views
                  │
  evidence outcome simulation and ranking
                  │
- proposed fact → human acceptance → new version → decision diff
+ proposed fact -> human acceptance -> new version -> decision diff
 ```
 
 Exasol is responsible for relational validation, candidate generation, aggregation and result storage. The Python component operates only on a bounded incident component. It aborts without partial output when its configured combination or scenario limit is exceeded.
@@ -76,19 +93,20 @@ Exasol is responsible for relational validation, candidate generation, aggregati
 - Saving unreviewed evidence never changes a decision.
 - Every acceptance uses an expected incident version to prevent a stale review.
 - Retraction invalidates the affected result and creates a new version.
+- Exasol-backed evidence state is restored after API restarts and rejected if it does not match the current snapshot fingerprint.
 - “Excluded under assumptions” is specific to this synthetic recall model. It does not mean safe to consume.
 
 The fixture is synthetic and describes fictional warehouse records. This project is a hackathon decision-support prototype, not regulatory advice, food-safety certification or a production warehouse integration.
 
 ## Project layout
 
-- `backend/` — API, request models, Exasol services and workflow orchestration
-- `planner/` — scenario enumeration, bounds, ranking, models and independent tiny oracle
-- `sql/` — Exasol schema, quality views and candidate queries
-- `data/` — deterministic generator, CSV fixture and Exasol loader
-- `frontend/` — React/TypeScript investigation interface
-- `tests/` — unit, API and adversarial workflow tests
-- `docs/` — run guide, API, architecture, evaluation and safety notes
+- `backend/` - API, request models, Exasol services and workflow orchestration
+- `planner/` - scenario enumeration, bounds, ranking, models and independent tiny oracle
+- `sql/` - Exasol schema, quality views and candidate queries
+- `data/` - deterministic generator, CSV fixture and Exasol loader
+- `frontend/` - React/TypeScript investigation interface
+- `tests/` - unit, API and adversarial workflow tests
+- `docs/` - run guide, API, architecture, evaluation and safety notes
 
 The measured offline and live checks, plus unverified integration work, are separated in
 [docs/evaluation.md](docs/evaluation.md). Use
@@ -96,9 +114,9 @@ The measured offline and live checks, plus unverified integration work, are sepa
 
 ## Team
 
-- Sakthi — Exasol core and data services
-- Bhavyasha — allocation and evidence planner
-- Harini — API, UI, integration and release
-- Adya — QA, documentation and demo
+- Sakthi - Exasol core and data services
+- Bhavyasha - allocation and evidence planner
+- Harini - API, UI, integration and release
+- Adya - QA, documentation and demo
 
 Licensed under the MIT License. Third-party packages retain their own licenses.
