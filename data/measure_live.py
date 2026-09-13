@@ -101,6 +101,8 @@ def main() -> int:
 
     app, initialization_ms = _milliseconds(create_app)
     workflow = app.state.workflow
+    starting_version = workflow.current_version
+    stale_app, stale_initialization_ms = _milliseconds(create_app)
     planner = _distribution(
         lambda: generate_feasible_scenarios(
             workflow.candidate_edges,
@@ -111,7 +113,7 @@ def main() -> int:
         ),
         arguments.runs,
     )
-    with TestClient(app) as client:
+    with TestClient(app) as client, TestClient(stale_app) as stale_client:
         api = {
             "incident": _distribution(
                 lambda: _require_ok(
@@ -160,6 +162,23 @@ def main() -> int:
                 )
             )
         )
+        stale_submission = stale_client.post(
+            f"/api/incidents/{arguments.incident_id}/evidence",
+            json={
+                "action_id": action["action_id"],
+                "source_reference": example["source_reference"],
+                "proposed_fact": example["proposed_fact"],
+                "content_hash": hashlib.sha256(
+                    f"stale-worker:{time.time_ns()}:{content}".encode()
+                ).hexdigest(),
+                "review_status": "PENDING_REVIEW",
+            },
+        )
+        if stale_submission.status_code != 409:
+            raise RuntimeError(
+                "stale worker was not rejected: "
+                f"{stale_submission.status_code} {stale_submission.text}"
+            )
         accepted, accept_ms = _milliseconds(
             lambda: _require_ok(
                 client.post(
@@ -167,7 +186,7 @@ def main() -> int:
                     f"{submission.json()['evidence_id']}/accept",
                     json={
                         "verified_by": arguments.reviewer,
-                        "expected_version": 1,
+                        "expected_version": starting_version,
                     },
                 )
             )
@@ -216,6 +235,8 @@ def main() -> int:
             **api,
         },
         "review_lifecycle": {
+            "concurrent_worker_initialization_ms": round(stale_initialization_ms, 3),
+            "stale_writer_status": stale_submission.status_code,
             "proposal_ms": round(submit_ms, 3),
             "accept_and_persist_ms": round(accept_ms, 3),
             "restart_and_restore_ms": round(restart_initialization_ms, 3),

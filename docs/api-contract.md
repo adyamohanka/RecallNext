@@ -74,8 +74,10 @@ still-active accepted fact; it does not treat the previous narrowed state as
 ground truth. The retraction creates a new incident version and its decision
 diff identifies the retracted evidence. In `EXASOL_PERSONAL` mode, evidence,
 versions and retractions are persisted in the `WORKFLOW_STATE` table and
-restored only when the stored base-scenario fingerprint matches the current
-database snapshot. Fixture mode is intentionally process-local.
+restored only when the stored scenario and validation-input fingerprint matches
+the current database snapshot. State writes use compare-and-swap semantics, so
+a stale API worker receives a 409 instead of overwriting another worker's audit
+history. Fixture mode is intentionally process-local.
 
 Before a proposal is stored, the API validates its fact shape, known identifiers, integer quantities, complete allocation totals, and compatibility with the selected evidence action. Invalid or mismatched facts return 422.
 

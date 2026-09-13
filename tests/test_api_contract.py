@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
+import backend.app as app_module
 from backend.app import create_app
+from backend.services.recall_workflow import default_workflow
 
 
 def test_health_labels_fixture_mode():
@@ -9,6 +11,23 @@ def test_health_labels_fixture_mode():
         assert response.status_code == 200
         assert response.json()["data_source"] == "SYNTHETIC_FIXTURE"
         assert response.json()["database_connected"] is False
+
+
+def test_app_lifespan_closes_workflow(monkeypatch):
+    workflow = default_workflow()
+    closed = False
+
+    def close():
+        nonlocal closed
+        closed = True
+
+    monkeypatch.setattr(workflow, "close", close)
+    monkeypatch.setattr(app_module, "default_workflow", lambda: workflow)
+
+    with TestClient(app_module.create_app()):
+        pass
+
+    assert closed is True
 
 
 def test_incident_decisions_and_actions_match_contract():

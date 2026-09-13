@@ -73,6 +73,23 @@ The full repository format check also reports seven inherited planner files in
 current `main` that Ruff would reformat. PR #2 does not modify those files, so
 they were not mechanically reformatted in this Exasol-only change.
 
+## Final application branch checks
+
+The final integration branch was checked on 13 September 2026 after the
+cross-worker persistence fixes:
+
+| Check | Result |
+|---|---|
+| Python tests | PASS - 112 tests, two dependency deprecation warnings |
+| Ruff lint | PASS |
+| Changed Python file format check | PASS |
+| Deterministic fixture regeneration | PASS |
+| Frontend component tests | PASS - 8 tests |
+| TypeScript and Vite production build | PASS |
+| Edge proposal, acceptance and retraction workflow | PASS - 1 browser test |
+| Edge live Exasol source check | PASS - 1 browser test |
+| Secret-pattern and ASCII punctuation checks | PASS |
+
 ## Correctness scope exercised
 
 The combined suite covers:
@@ -91,6 +108,7 @@ The combined suite covers:
 - incompatible accepted evidence producing `CONFLICT` and `UNRESOLVED`;
 - rejected and unavailable evidence producing no narrowing;
 - stale proposals, current pending deduplication, and resubmission rules;
+- stale cross-worker Exasol writes and worker resynchronization;
 - retraction rebuilding from all remaining active accepted or conflicting
   evidence;
 - persistence rejection when status, bounds, solver status, and completeness
@@ -146,18 +164,19 @@ six-shipment synthetic warehouse fixture and official openFDA recall context
 
 | Measured path | Runs | Median | p95 |
 |---|---:|---:|---:|
-| Exasol incident snapshot | 5 | 1017.404 ms | 3157.902 ms |
-| Exasol candidate edges | 5 | 240.035 ms | 247.363 ms |
-| Complete scenario enumeration | 5 | 808.680 ms | 1235.980 ms |
-| API incident read after initialization | 5 | 1.080 ms | 5.158 ms |
-| API decision read after initialization | 5 | 0.961 ms | 1.281 ms |
-| API evidence ranking after initialization | 5 | 40.228 ms | 41.794 ms |
+| Exasol incident snapshot | 5 | 667.514 ms | 694.854 ms |
+| Exasol candidate edges | 5 | 225.356 ms | 234.974 ms |
+| Complete scenario enumeration | 5 | 1455.046 ms | 1957.188 ms |
+| API incident read after initialization | 5 | 1.792 ms | 5.075 ms |
+| API decision read after initialization | 5 | 1.459 ms | 2.344 ms |
+| API evidence ranking after initialization | 5 | 116.672 ms | 141.611 ms |
 
-Application initialization took 3747.735 ms. A proposal took 173.241 ms,
-human acceptance plus Exasol persistence took 162.389 ms, and a fresh workflow
-reconstruction restored version 2 in 2970.808 ms. Retraction plus persistence
-took 202.501 ms, and a second reconstruction restored retracted version 3 in
-4911.399 ms.
+Application initialization took 3827.759 ms. A second concurrent worker
+initialized in 4138.260 ms, and its stale write was rejected with HTTP 409. A
+proposal took 202.972 ms, human acceptance plus Exasol persistence took 160.460
+ms, and a fresh workflow reconstruction restored version 2 in 3747.842 ms.
+Retraction plus persistence took 254.219 ms, and a second reconstruction
+restored retracted version 3 in 3959.047 ms.
 
 These are five-run measurements of one small bounded fixture over an SSH
 tunnel, not warehouse-scale throughput claims. API read timings exclude

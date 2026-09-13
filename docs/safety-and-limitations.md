@@ -66,8 +66,10 @@ conversion or warehouse-scale optimization.
 - Example document facts are synthetic. No live LLM or document service is
   connected.
 - In Exasol mode, incident versions, review records and retractions persist in
-  `WORKFLOW_STATE` and are restored only when the base-scenario fingerprint
-  still matches. Fixture mode remains process-local.
+  `WORKFLOW_STATE` and are restored only when the scenarios and every decision-
+  or validation-relevant input still match. Compare-and-swap writes reject stale
+  workers instead of overwriting newer audit state. Fixture mode remains
+  process-local.
 - Retraction is implemented in the API and UI and uses reverse chronological
   order for multiple reviewed facts.
 - Sequential baseline evaluation is recorded against committed synthetic

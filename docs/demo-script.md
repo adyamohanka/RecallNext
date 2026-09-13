@@ -62,9 +62,9 @@ persisted in Exasol, so reconstruction does not erase the audit trail.”
 
 “The visible API is running on Exasol Personal with encrypted, pinned transport.
 Five live runs returned six shipments, fourteen candidate edges and 125 complete
-histories. Median database times were 1.017 seconds for the incident snapshot
-and 240 milliseconds for candidate edges. Complete scenario enumeration took a
-median 809 milliseconds. Human acceptance persisted in 162 milliseconds, and a
+histories. Median database times were 668 milliseconds for the incident snapshot
+and 225 milliseconds for candidate edges. Complete scenario enumeration took a
+median 1.455 seconds. Human acceptance persisted in 160 milliseconds, and a
 fresh workflow reconstruction restored it from Exasol.”
 
 Show `docs/evaluation-results/live-final.json`. Describe these as small-fixture

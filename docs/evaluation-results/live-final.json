@@ -1,64 +1,66 @@
 {
-  "measured_at_utc": "2026-09-13T09:34:48Z",
+  "measured_at_utc": "2026-09-13T10:11:49Z",
   "data_source": "EXASOL_PERSONAL",
   "database": {
     "schema": "RECALLNEXT",
     "encrypted": true,
     "incident_snapshot": {
       "runs": 5,
-      "median_ms": 1017.404,
-      "p95_ms": 3157.902,
-      "min_ms": 690.977,
-      "max_ms": 3157.902
+      "median_ms": 667.514,
+      "p95_ms": 694.854,
+      "min_ms": 628.471,
+      "max_ms": 694.854
     },
     "candidate_edges": {
       "runs": 5,
-      "median_ms": 240.035,
-      "p95_ms": 247.363,
-      "min_ms": 225.393,
-      "max_ms": 247.363
+      "median_ms": 225.356,
+      "p95_ms": 234.974,
+      "min_ms": 209.026,
+      "max_ms": 234.974
     }
   },
   "planner": {
     "complete_scenario_enumeration": {
       "runs": 5,
-      "median_ms": 808.68,
-      "p95_ms": 1235.98,
-      "min_ms": 749.542,
-      "max_ms": 1235.98
+      "median_ms": 1455.046,
+      "p95_ms": 1957.188,
+      "min_ms": 1296.185,
+      "max_ms": 1957.188
     }
   },
   "api": {
-    "initialization_ms": 3747.735,
+    "initialization_ms": 3827.759,
     "incident": {
       "runs": 5,
-      "median_ms": 1.08,
-      "p95_ms": 5.158,
-      "min_ms": 0.976,
-      "max_ms": 5.158
+      "median_ms": 1.792,
+      "p95_ms": 5.075,
+      "min_ms": 1.528,
+      "max_ms": 5.075
     },
     "decisions": {
       "runs": 5,
-      "median_ms": 0.961,
-      "p95_ms": 1.281,
-      "min_ms": 0.919,
-      "max_ms": 1.281
+      "median_ms": 1.459,
+      "p95_ms": 2.344,
+      "min_ms": 1.089,
+      "max_ms": 2.344
     },
     "evidence_actions": {
       "runs": 5,
-      "median_ms": 40.228,
-      "p95_ms": 41.794,
-      "min_ms": 37.674,
-      "max_ms": 41.794
+      "median_ms": 116.672,
+      "p95_ms": 141.611,
+      "min_ms": 82.592,
+      "max_ms": 141.611
     }
   },
   "review_lifecycle": {
-    "proposal_ms": 173.241,
-    "accept_and_persist_ms": 162.389,
-    "restart_and_restore_ms": 2970.808,
+    "concurrent_worker_initialization_ms": 4138.26,
+    "stale_writer_status": 409,
+    "proposal_ms": 202.972,
+    "accept_and_persist_ms": 160.46,
+    "restart_and_restore_ms": 3747.842,
     "restored_version": 2,
-    "retract_and_persist_ms": 202.501,
-    "second_restart_and_restore_ms": 4911.399,
+    "retract_and_persist_ms": 254.219,
+    "second_restart_and_restore_ms": 3959.047,
     "restored_retracted_version": 3
   },
   "scope": {

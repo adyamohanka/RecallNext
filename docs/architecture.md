@@ -37,7 +37,9 @@ The offline adapter reconstructs the candidate semantics from committed CSVs and
 labels that source in each incident and health response. In
 `EXASOL_PERSONAL` mode, the API loads the same contract from live database rows,
 persists review state in Exasol, and fails during startup if that database path
-is unavailable. It never silently falls back to fixture mode.
+is unavailable. Persisted writes compare the exact previously loaded state, so
+concurrent stale workers fail and resynchronize instead of losing evidence. The
+API never silently falls back to fixture mode.
 
 The scenario generator deliberately returns no scenarios if its search bound is exceeded. Classification independently validates shipment totals, known lot limits and closed-inventory conservation before allowing an exclusion.
 

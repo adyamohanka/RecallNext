@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,10 +21,20 @@ from backend.services.recall_workflow import (
 
 
 def create_app() -> FastAPI:
+    workflow = default_workflow()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        try:
+            yield
+        finally:
+            workflow.close()
+
     app = FastAPI(
         title="RecallNext API",
         version="0.1.0",
         description="Deterministic recall investigation with explicit human evidence review.",
+        lifespan=lifespan,
     )
     app.add_middleware(
         CORSMiddleware,
@@ -31,7 +43,6 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
-    workflow = default_workflow()
     app.state.workflow = workflow
 
     def require_incident(incident_id: str) -> None:
@@ -121,6 +132,8 @@ def create_app() -> FastAPI:
         require_incident(incident_id)
         try:
             return workflow.submit_evidence(submission.model_dump())
+        except ConflictError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
         except WorkflowError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 

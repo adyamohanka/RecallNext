@@ -6,18 +6,19 @@ openFDA record `H-1259-2026`; the private warehouse fixture is synthetic.
 
 | Path | Runs | Median | p95 |
 |---|---:|---:|---:|
-| Exasol incident snapshot | 5 | 1017.404 ms | 3157.902 ms |
-| Exasol candidate edges | 5 | 240.035 ms | 247.363 ms |
-| Complete scenario enumeration | 5 | 808.680 ms | 1235.980 ms |
-| API incident read after initialization | 5 | 1.080 ms | 5.158 ms |
-| API decisions read after initialization | 5 | 0.961 ms | 1.281 ms |
-| API evidence ranking after initialization | 5 | 40.228 ms | 41.794 ms |
+| Exasol incident snapshot | 5 | 667.514 ms | 694.854 ms |
+| Exasol candidate edges | 5 | 225.356 ms | 234.974 ms |
+| Complete scenario enumeration | 5 | 1455.046 ms | 1957.188 ms |
+| API incident read after initialization | 5 | 1.792 ms | 5.075 ms |
+| API decisions read after initialization | 5 | 1.459 ms | 2.344 ms |
+| API evidence ranking after initialization | 5 | 116.672 ms | 141.611 ms |
 
-Application initialization took 3747.735 ms. Proposal creation took 173.241
-ms. Acceptance and Exasol persistence took 162.389 ms. A new workflow instance
-restored accepted version 2 in 2970.808 ms. Retraction and persistence took
-202.501 ms; a second new workflow instance restored retracted version 3 in
-4911.399 ms.
+Application initialization took 3827.759 ms. A second concurrent worker
+initialized in 4138.260 ms and its stale write was rejected with HTTP 409.
+Proposal creation took 202.972 ms. Acceptance and Exasol persistence took
+160.460 ms. A new workflow instance restored accepted version 2 in 3747.842
+ms. Retraction and persistence took 254.219 ms; a second new workflow instance
+restored retracted version 3 in 3959.047 ms.
 
 Scope: six shipments, fourteen candidate edges and 125 complete feasible
 scenarios. These are small-fixture measurements over an SSH tunnel, not a

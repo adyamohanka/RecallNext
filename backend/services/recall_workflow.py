@@ -14,7 +14,10 @@ from typing import Any
 
 from backend.config import ExasolConfig
 from backend.db import connect_exasol
-from backend.services.exasol_state import ExasolWorkflowStateStore
+from backend.services.exasol_state import (
+    ConcurrentStateWriteError,
+    ExasolWorkflowStateStore,
+)
 from backend.services.incident_service import IncidentService
 from planner.allocation_bounds import classify_shipments
 from planner.evidence_planner import rank_actions
@@ -148,6 +151,12 @@ class RecallWorkflow:
         )
         self._restore_state()
         return self
+
+    def close(self) -> None:
+        connection = getattr(self, "_connection", None)
+        if connection is not None:
+            connection.close()
+            self._connection = None
 
     @staticmethod
     def _normalize_integer_fields(
@@ -295,22 +304,32 @@ class RecallWorkflow:
                 "diagnostics": generated.get("diagnostics", {}),
             }
         }
+        fingerprint_inputs = {
+            "model_version": self.model_version,
+            "product_id": self.product_id,
+            "lots": self.lots,
+            "shipments": self.shipments,
+            "containers": self.containers,
+            "shipment_containers": self.shipment_containers,
+            "actions": self.actions,
+            "action_shipments": self.action_shipments,
+            "candidate_edges": self.candidate_edges,
+            "recalled_lot_ids": sorted(self.recalled_lot_ids),
+            "base_scenarios": self._base_scenarios,
+            "assumptions": assumptions,
+        }
         self._base_fingerprint = hashlib.sha256(
             json.dumps(
-                self._base_scenarios,
+                fingerprint_inputs,
                 sort_keys=True,
                 separators=(",", ":"),
+                default=str,
             ).encode("utf-8")
         ).hexdigest()
 
-    def _restore_state(self) -> None:
-        if self._state_store is None:
-            return
-        stored = self._state_store.load()
-        if stored is None:
-            return
+    def _apply_stored_state(self, stored: dict[str, Any]) -> None:
         if (
-            stored.get("schema_version") != 1
+            stored.get("schema_version") != 2
             or stored.get("snapshot_version") != self.snapshot_version
             or stored.get("base_fingerprint") != self._base_fingerprint
         ):
@@ -323,19 +342,38 @@ class RecallWorkflow:
             int(version): state for version, state in stored["versions"].items()
         }
 
+    def _restore_state(self) -> None:
+        if self._state_store is None:
+            return
+        stored = self._state_store.load()
+        if stored is not None:
+            self._apply_stored_state(stored)
+
     def _persist_state(self) -> None:
         if self._state_store is None:
             return
-        self._state_store.save(
-            {
-                "schema_version": 1,
-                "snapshot_version": self.snapshot_version,
-                "base_fingerprint": self._base_fingerprint,
-                "current_version": self.current_version,
-                "evidence": self._evidence,
-                "versions": self._versions,
-            }
-        )
+        state = {
+            "schema_version": 2,
+            "snapshot_version": self.snapshot_version,
+            "base_fingerprint": self._base_fingerprint,
+            "current_version": self.current_version,
+            "evidence": self._evidence,
+            "versions": self._versions,
+        }
+        try:
+            self._state_store.save(state)
+        except ConcurrentStateWriteError as error:
+            stored = self._state_store.load()
+            if stored is None:
+                initial = self._versions[1]
+                self.current_version = 1
+                self._evidence = {}
+                self._versions = {1: initial}
+            else:
+                self._apply_stored_state(stored)
+            raise ConflictError(
+                "workflow state changed in another API worker; refresh and retry"
+            ) from error
 
     def _build_candidate_edges(self) -> list[dict[str, Any]]:
         lots_by_id = {lot["lot_id"]: lot for lot in self.lots}
@@ -1019,34 +1057,38 @@ def default_workflow() -> RecallWorkflow:
     if mode == "EXASOL_PERSONAL":
         config = ExasolConfig.from_environment()
         connection = connect_exasol(config, autocommit=True)
-        service = IncidentService(connection)
-        incidents = service.list_incidents()
-        if not incidents:
+        try:
+            service = IncidentService(connection)
+            incidents = service.list_incidents()
+            if not incidents:
+                raise WorkflowError("Exasol contains no RecallNext incident")
+            requested_id = os.environ.get("RECALLNEXT_INCIDENT_ID", "").strip()
+            selected = next(
+                (
+                    row
+                    for row in incidents
+                    if not requested_id or row["incident_id"] == requested_id
+                ),
+                None,
+            )
+            if selected is None:
+                raise WorkflowError(f"incident not found in Exasol: {requested_id}")
+            requested_version = os.environ.get(
+                "RECALLNEXT_INCIDENT_VERSION", ""
+            ).strip()
+            incident_version = (
+                int(requested_version)
+                if requested_version
+                else int(selected["incident_version"])
+            )
+            return RecallWorkflow.from_exasol(
+                connection,
+                str(selected["incident_id"]),
+                incident_version,
+            )
+        except Exception:
             connection.close()
-            raise WorkflowError("Exasol contains no RecallNext incident")
-        requested_id = os.environ.get("RECALLNEXT_INCIDENT_ID", "").strip()
-        selected = next(
-            (
-                row
-                for row in incidents
-                if not requested_id or row["incident_id"] == requested_id
-            ),
-            None,
-        )
-        if selected is None:
-            connection.close()
-            raise WorkflowError(f"incident not found in Exasol: {requested_id}")
-        requested_version = os.environ.get("RECALLNEXT_INCIDENT_VERSION", "").strip()
-        incident_version = (
-            int(requested_version)
-            if requested_version
-            else int(selected["incident_version"])
-        )
-        return RecallWorkflow.from_exasol(
-            connection,
-            str(selected["incident_id"]),
-            incident_version,
-        )
+            raise
     if mode != "SYNTHETIC_FIXTURE":
         raise WorkflowError(
             "RECALLNEXT_DATA_SOURCE must be SYNTHETIC_FIXTURE or EXASOL_PERSONAL"

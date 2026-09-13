@@ -54,8 +54,8 @@ The visible API fails closed in Exasol mode instead of falling back to CSV.
 -> API/UI.
 
 **Measured proof:** Five live runs returned six shipments, fourteen candidate
-edges, 125 complete scenarios and zero blockers. Median times were 1017.404 ms
-for the incident snapshot, 240.035 ms for candidate edges and 808.680 ms for
+edges, 125 complete scenarios and zero blockers. Median times were 667.514 ms
+for the incident snapshot, 225.356 ms for candidate edges and 1455.046 ms for
 complete scenario enumeration over the SSH tunnel.
 
 ## 5. Correctness and evaluation
@@ -65,7 +65,7 @@ contradictions, bad scenarios, timeouts and retractions cannot preserve an
 unjustified exclusion.
 
 **Current evidence:** 79 offline tests on the historical Adya QA environment and
-106 tests on the final application branch, including API workflow and a
+112 tests on the final application branch, including API workflow and a
 separate tiny oracle. Eight frontend component tests, the pnpm production build,
 one full browser workflow test and one live Exasol browser check pass. The real
 Exasol-backed workflow
