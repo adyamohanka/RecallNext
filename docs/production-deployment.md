@@ -71,12 +71,15 @@ sudo tailscale set --hostname=recallnext
 sudo tailscale up
 sudo tailscale funnel --bg http://127.0.0.1:8080
 tailscale funnel status
+export RECALLNEXT_PUBLIC_HOST="recallnext.<tailnet>.ts.net"
 ```
 
 The first `tailscale up` prints a one-time account authorization link. After the
 account enables MagicDNS, HTTPS, and Funnel, the status command reports the exact
-stable public URL. Funnel traffic is outbound from the VM, so ports 80 and 443 do
-not need to be opened in the EC2 security group.
+stable public URL. Replace `<tailnet>` in the exported hostname with the value in
+that URL before running the shared verification commands below. Funnel traffic
+is outbound from the VM, so ports 80 and 443 do not need to be opened in the EC2
+security group.
 
 ## Secret rotation
 
