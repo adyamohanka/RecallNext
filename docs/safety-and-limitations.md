@@ -66,8 +66,9 @@ conversion or warehouse-scale optimization.
 - Incident and evidence versions are in memory and reset at API restart.
 - Retraction is implemented in the API, uses reverse chronological order for
   multiple reviewed facts, and is not exposed in the current UI.
-- Sequential baseline evaluation is pending. Single-run live Exasol query
-  timings are recorded, but they are not a performance benchmark.
+- Sequential baseline evaluation is recorded against committed synthetic
+  scenarios. Single-run live Exasol query timings are recorded separately, but
+  they are not a performance benchmark.
 
 ## Data and AI boundary
 

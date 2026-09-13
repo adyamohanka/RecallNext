@@ -63,10 +63,11 @@ contradictions, bad scenarios, timeouts and retractions cannot preserve an
 unjustified exclusion.
 
 **Current evidence:** 79 offline tests on the historical Adya QA environment and
-102 tests on the exact integrated functional head, including API workflow and a
+106 tests on the merged application revision, including API workflow and a
 separate tiny oracle. The pnpm production build passes. The real Exasol boundary
 run returned six shipments, fourteen candidate edges, zero blockers, and a
-complete universe. Sequential strategy measurements remain pending.
+complete universe. Sequential strategy measurements are recorded against the
+committed synthetic benchmark fixture.
 
 **Figures after evaluation:** false exclusions within the declared scope,
 coverage, held cases, action count, simulated retrieval minutes, database time,
