@@ -72,9 +72,9 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 
 See [docs/run-guide.md](docs/run-guide.md) for Exasol setup, smoke checks and troubleshooting. The API payloads are documented in [docs/api-contract.md](docs/api-contract.md).
 
-For the single-container production build, protected write routes, live OpenAI
-document extraction, and a stable free HTTPS address without opening EC2 web
-ports, follow [docs/production-deployment.md](docs/production-deployment.md).
+For the production container build, protected write routes, live OpenAI
+document extraction, and HTTPS edge options, follow
+[docs/production-deployment.md](docs/production-deployment.md).
 
 ## Architecture
 
@@ -118,9 +118,8 @@ The fixture is synthetic and describes fictional warehouse records. This project
 - `tests/` - unit, API and adversarial workflow tests
 - `docs/` - run guide, API, architecture, evaluation and safety notes
 
-The measured offline and live checks, plus unverified integration work, are separated in
-[docs/evaluation.md](docs/evaluation.md). Use
-[docs/release-checklist.md](docs/release-checklist.md) before submission.
+Verified evaluation results and their measurement boundaries are documented in
+[docs/evaluation.md](docs/evaluation.md).
 
 ## Team
 
