@@ -1,6 +1,6 @@
 # Sequential benchmark
 
-Synthetic deterministic benchmark. Timing fields are local runtime measurements, not warehouse or database timings.
+Synthetic deterministic benchmark. Committed artifacts omit machine-dependent wall-clock timings; they are not warehouse or database measurements.
 
 - Truth cases: 2
 - Budgets: 4, 11 minutes
