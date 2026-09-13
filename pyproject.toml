@@ -9,13 +9,14 @@ description = "Evidence-optimized food recall investigation on Exasol Personal"
 requires-python = ">=3.10"
 dependencies = [
   "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "python-multipart>=0.0.20,<1",
   "pyexasol>=2.2.3,<3",
   "uvicorn[standard]>=0.35,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.28,<1",
   "pytest>=8.4,<9",
   "ruff>=0.16,<1",
 ]

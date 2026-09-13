@@ -11,6 +11,90 @@ def test_health_labels_fixture_mode():
         assert response.status_code == 200
         assert response.json()["data_source"] == "SYNTHETIC_FIXTURE"
         assert response.json()["database_connected"] is False
+        assert response.json()["write_auth_required"] is False
+        assert response.json()["document_extraction_configured"] is False
+
+
+def test_production_write_routes_require_the_runtime_bearer_token(monkeypatch):
+    token = "reviewer-secret-with-24-characters"
+    monkeypatch.setenv("RECALLNEXT_REQUIRE_AUTH", "true")
+    monkeypatch.setenv("RECALLNEXT_ADMIN_TOKEN", token)
+    with TestClient(create_app()) as client:
+        health = client.get("/api/health")
+        assert health.status_code == 200
+        assert health.json()["write_auth_required"] is True
+        payload = {
+            "action_id": "ACT-MANIFEST-S200",
+            "source_reference": "test://manifest",
+            "proposed_fact": {
+                "fact_type": "shipment_allocation",
+                "shipment_id": "S-200",
+                "allocations": {"FARM-A:REC-2026-01": 5},
+            },
+            "content_hash": "authcheck012345678",
+            "review_status": "PENDING_REVIEW",
+        }
+        assert (
+            client.post(
+                "/api/incidents/INC-DEMO-001/evidence", json=payload
+            ).status_code
+            == 401
+        )
+        response = client.post(
+            "/api/incidents/INC-DEMO-001/evidence",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 201
+
+
+def test_document_endpoint_returns_only_a_reviewable_proposal(monkeypatch):
+    token = "reviewer-secret-with-24-characters"
+    monkeypatch.setenv("RECALLNEXT_REQUIRE_AUTH", "true")
+    monkeypatch.setenv("RECALLNEXT_ADMIN_TOKEN", token)
+    monkeypatch.setenv("OPENAI_API_KEY", "provider-secret")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+
+    def extract(self, **kwargs):
+        assert kwargs["context"]["target_id"] == "S-200"
+        return {
+            "proposed_fact": {
+                "fact_type": "shipment_allocation",
+                "shipment_id": "S-200",
+                "allocations": {"FARM-A:REC-2026-01": 5},
+            },
+            "source_reference": "upload://sha256/abc#manifest.csv",
+            "content_hash": "abc123456789",
+            "extraction_mode": "OPENAI_RESPONSES_API",
+            "model": "test-model",
+            "provider_response_id": "resp_test",
+            "requires_human_review": True,
+        }
+
+    monkeypatch.setattr(
+        "backend.services.document_extractor.OpenAIDocumentExtractor.extract", extract
+    )
+    with TestClient(create_app()) as client:
+        before = client.get("/api/incidents/INC-DEMO-001").json()["current_version"]
+        unauthorized = client.post(
+            "/api/incidents/INC-DEMO-001/evidence-actions/ACT-MANIFEST-S200/extract-document",
+            files={"document": ("manifest.csv", b"rows", "text/csv")},
+        )
+        assert unauthorized.status_code == 401
+        response = client.post(
+            "/api/incidents/INC-DEMO-001/evidence-actions/ACT-MANIFEST-S200/extract-document",
+            files={"document": ("manifest.csv", b"rows", "text/csv")},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        assert response.json()["requires_human_review"] is True
+        assert (
+            client.get("/api/incidents/INC-DEMO-001").json()["current_version"]
+            == before
+        )
+        assert (
+            client.get("/api/incidents/INC-DEMO-001/evidence").json()["evidence"] == []
+        )
 
 
 def test_app_lifespan_closes_workflow(monkeypatch):

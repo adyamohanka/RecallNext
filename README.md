@@ -66,6 +66,10 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 
 See [docs/run-guide.md](docs/run-guide.md) for Exasol setup, smoke checks and troubleshooting. The API payloads are documented in [docs/api-contract.md](docs/api-contract.md).
 
+For the single-container production build, protected write routes, live OpenAI
+document extraction, and a stable free HTTPS address without opening EC2 web
+ports, follow [docs/production-deployment.md](docs/production-deployment.md).
+
 ## Architecture
 
 ```text
