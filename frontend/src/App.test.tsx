@@ -26,6 +26,7 @@ let examples: Map<string, ReturnType<typeof deferred<Response>>>;
 let signals: Map<string, AbortSignal>;
 let fetchMock: ReturnType<typeof vi.fn>;
 let post: ReturnType<typeof deferred<Response>>;
+let health: { document_extraction_configured: boolean; write_auth_required: boolean };
 const storedFact = { fact_type: "allocation", quantity: 7 };
 const proposal = { evidence_id: "EV-STORED", status: "PENDING_REVIEW", duplicate: false,
   source_reference: "stored/source", proposed_fact: storedFact };
@@ -34,7 +35,9 @@ beforeEach(() => {
   examples = new Map([['A', deferred<Response>()], ['B', deferred<Response>()]]);
   signals = new Map();
   post = deferred<Response>();
+  health = { document_extraction_configured: false, write_auth_required: false };
   fetchMock = vi.fn((path: string, init?: RequestInit) => {
+    if (path === '/api/health') return Promise.resolve(response(health));
     if (path === '/api/incidents') return Promise.resolve(response({ incidents: [{ incident_id: incident.incident_id }] }));
     if (path.endsWith('/example-fact')) {
       const id = path.split('/').at(-2)!;
@@ -42,6 +45,10 @@ beforeEach(() => {
       // Deliberately ignore abort: simulate a response already queued for delivery.
       return examples.get(id)!.promise;
     }
+    if (path.endsWith('/extract-document')) return Promise.resolve(response({
+      proposed_fact: { fact_type: 'shipment_allocation', shipment_id: 'A', allocations: { 'LOT-1': 5 } },
+      source_reference: 'upload://sha256/abc#manifest.csv', content_hash: 'abc', model: 'test-model', requires_human_review: true,
+    }));
     if (path.endsWith('/accept') || path.endsWith('/reject')) return Promise.resolve(response({ current_version: 2, solver_status: "SUCCESS" }));
     if (init?.method === 'POST') return post.promise;
     if (path.endsWith('/evidence-actions')) return Promise.resolve(response({ actions: [action('A'), action('B')] }));
@@ -132,5 +139,23 @@ describe('example request lifecycle', () => {
     expect(factField().value).toBe('{}');
     expect(factField().disabled).toBe(false);
     expect((screen.getByText('Accept and reassess') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('sends a document and reviewer key only to the protected extraction route', async () => {
+    health = { document_extraction_configured: true, write_auth_required: true };
+    await open();
+    await screen.findByText('Live AI document extraction');
+    fireEvent.change(screen.getByLabelText('Reviewer access key'), { target: { value: 'review-token' } });
+    fireEvent.change(screen.getByLabelText('Source document'), {
+      target: { files: [new File(['manifest rows'], 'manifest.csv', { type: 'text/csv' })] },
+    });
+    fireEvent.click(screen.getByText('Extract with OpenAI'));
+    await screen.findByText(/OpenAI extracted a proposal with test-model/);
+    const call = fetchMock.mock.calls.find(([path]) => path.endsWith('/extract-document'))!;
+    expect((call[1]!.headers as Record<string, string>).Authorization).toBe('Bearer review-token');
+    expect(call[1]!.body).toBeInstanceOf(FormData);
+    expect(JSON.parse(factField().value)).toEqual({
+      fact_type: 'shipment_allocation', shipment_id: 'A', allocations: { 'LOT-1': 5 },
+    });
   });
 });

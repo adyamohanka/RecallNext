@@ -23,7 +23,10 @@ export default defineConfig({
     {
       command: `${python} -m uvicorn backend.app:app --host 127.0.0.1 --port 8000`,
       cwd: repositoryRoot,
-      env: { RECALLNEXT_DATA_SOURCE: "SYNTHETIC_FIXTURE" },
+      env: {
+        RECALLNEXT_DATA_SOURCE: "SYNTHETIC_FIXTURE",
+        RECALLNEXT_REQUIRE_AUTH: "false",
+      },
       url: "http://127.0.0.1:8000/api/health",
       reuseExistingServer: false,
       timeout: 120_000,

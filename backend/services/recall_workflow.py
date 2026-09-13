@@ -811,6 +811,48 @@ class RecallWorkflow:
     def has_action(self, action_id: str) -> bool:
         return action_id in self._actions_by_id
 
+    def extraction_context(self, action_id: str) -> dict[str, Any]:
+        """Return the bounded identifiers and quantities an extractor may emit."""
+
+        action = self._actions_by_id.get(action_id)
+        if action is None:
+            raise WorkflowError("unknown action_id")
+        target = str(action["target_id"])
+        shipment_ids: list[str] = []
+        expected_quantities: dict[str, int] = {}
+        if action["action_type"] in {
+            "DISPATCH_MANIFEST_LOOKUP",
+            "PHYSICAL_SCAN",
+        }:
+            shipment_ids = [target]
+            expected_quantities[target] = int(
+                self._shipments_by_id[target]["quantity_cases"]
+            )
+        elif action["action_type"] == "PICK_LOG_LOOKUP":
+            expected_quantities = {
+                str(row["shipment_id"]): int(row["pick_quantity_cases"])
+                for row in self.shipment_containers
+                if str(row["container_id"]) == target
+            }
+            shipment_ids = sorted(expected_quantities)
+        elif action["action_type"] == "LABEL_LOOKUP":
+            expected_quantities[target] = int(
+                self._container_by_id[target]["quantity_cases"]
+            )
+        return {
+            "action_id": action_id,
+            "action_type": str(action["action_type"]),
+            "target_id": target,
+            "known_lot_ids": sorted(str(lot["lot_id"]) for lot in self.lots),
+            "shipment_ids": shipment_ids,
+            "expected_quantities": expected_quantities,
+        }
+
+    def validate_fact(self, action_id: str, fact: object) -> None:
+        """Apply the same fail-closed contract used before evidence persistence."""
+
+        self._validate_fact(action_id, fact)
+
     def reject_evidence(
         self, evidence_id: str, verified_by: str, expected_version: int, reason: str
     ) -> dict[str, Any]:

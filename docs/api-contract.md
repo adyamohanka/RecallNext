@@ -12,10 +12,47 @@ Incident identifiers are discovered at runtime. Unknown incidents return 404.
 | GET | `/api/incidents/INC-DEMO-001/evidence-actions` | Ranked and transparently dominated actions |
 | GET | `/api/incidents/INC-DEMO-001/diff?from_version=1&to_version=2` | Versioned decision changes |
 | GET | `/api/incidents/INC-DEMO-001/evidence-actions/{action_id}/example-fact` | Synthetic demo proposal for a selected action |
+| POST | `/api/incidents/INC-DEMO-001/evidence-actions/{action_id}/extract-document` | Extract a bounded, review-only fact from an uploaded source |
 | POST | `/api/incidents/INC-DEMO-001/evidence` | Save a proposal without reassessment |
 | POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/accept` | Human acceptance and deterministic reassessment |
 | POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/reject` | Human rejection without changing decisions or version |
 | POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/retract` | Human retraction, reconstruction from active evidence and a new version |
+
+Authentication defaults to enabled. Without a valid
+`RECALLNEXT_ADMIN_TOKEN`, the API refuses to start. When
+`RECALLNEXT_REQUIRE_AUTH=true`, every POST route requires
+`Authorization: Bearer <reviewer-token>`. The token is supplied at runtime and
+is never returned by the API. GET routes remain read-only and public. An
+operator must explicitly set `RECALLNEXT_REQUIRE_AUTH=false` to run an
+unauthenticated local development server.
+
+Document extraction accepts multipart field `document` with PDF, PNG, JPEG,
+WebP, plain text, CSV, or JSON content. It uses the selected action's target,
+known lot identifiers, and expected quantities as a strict output boundary.
+The Responses API request uses structured JSON output and `store: false`. A
+successful response has this form:
+
+```json
+{
+  "action_id": "ACT-MANIFEST-S200",
+  "proposed_fact": {
+    "fact_type": "shipment_allocation",
+    "shipment_id": "S-200",
+    "allocations": {"FARM-A:REC-2026-01": 5}
+  },
+  "source_reference": "upload://sha256/<sha256>#manifest.csv",
+  "content_hash": "<sha256>",
+  "extraction_mode": "OPENAI_RESPONSES_API",
+  "model": "<runtime-model>",
+  "provider_response_id": "<provider-response-id>",
+  "requires_human_review": true
+}
+```
+
+Extraction never creates an evidence record and never changes a decision. The
+returned fact passes the same action-specific validator used by proposal
+submission. Missing provider configuration returns 503, provider failures
+return 502, and incomplete or incompatible source content returns 422.
 
 Evidence proposal:
 

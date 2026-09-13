@@ -3,7 +3,7 @@
 Target length: 2 minutes 55 seconds. All numbers below come from the committed
 live result or deterministic fixture.
 
-## 0:00–0:20 — Problem
+## 0:00-0:20 - Problem
 
 **Screen:** Incident header and recalled lot.
 
@@ -13,7 +13,7 @@ history. RecallNext asks which missing warehouse record is most useful to check
 next. The public recall shown here is real; the private warehouse demo is
 synthetic and labelled.”
 
-## 0:20–0:45 — Initial uncertain hold
+## 0:20-0:45 - Initial uncertain hold
 
 **Screen:** Six shipment decisions, safety notice and 125 histories.
 
@@ -25,7 +25,7 @@ Unknown coverage would be unresolved; it would not become an exclusion.”
 Point to the lower and upper case bounds. Do not sum per-shipment maxima as one
 actual recalled total.
 
-## 0:45–1:15 — Ranked next evidence
+## 0:45-1:15 - Ranked next evidence
 
 **Screen:** Evidence queue and selected dispatch manifest.
 
@@ -34,7 +34,7 @@ The queue includes unavailable outcomes, so guaranteed benefit may be zero.
 Successful-outcome value is visibly labelled conditional, and effort is a
 fixture estimate.”
 
-## 1:15–1:45 — Human verification
+## 1:15-1:45 - Human verification
 
 **Screen:** Proposed manifest fields and version 1.
 
