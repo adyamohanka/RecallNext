@@ -36,7 +36,7 @@ class WriteAuth:
         cls, environment: Mapping[str, str] | None = None
     ) -> WriteAuth:
         values = os.environ if environment is None else environment
-        required = _boolean(values, "RECALLNEXT_REQUIRE_AUTH", False)
+        required = _boolean(values, "RECALLNEXT_REQUIRE_AUTH", True)
         token = values.get("RECALLNEXT_ADMIN_TOKEN", "").strip() or None
         if required and (token is None or len(token) < 24):
             raise ConfigurationError(

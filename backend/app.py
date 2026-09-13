@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from backend.models import (
     EvidenceAcceptance,
@@ -191,7 +192,8 @@ def create_app() -> FastAPI:
                 status_code=413, detail="Uploaded document is too large"
             )
         try:
-            result = extractor.extract(
+            result = await run_in_threadpool(
+                extractor.extract,
                 context=workflow.extraction_context(action_id),
                 filename=document.filename,
                 content_type=document.content_type,

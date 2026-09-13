@@ -1,7 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
 
 import backend.app as app_module
 from backend.app import create_app
+from backend.config import ConfigurationError
+from backend.security import WriteAuth
 from backend.services.recall_workflow import default_workflow
 
 
@@ -13,6 +16,14 @@ def test_health_labels_fixture_mode():
         assert response.json()["database_connected"] is False
         assert response.json()["write_auth_required"] is False
         assert response.json()["document_extraction_configured"] is False
+
+
+def test_authentication_defaults_to_fail_closed():
+    with pytest.raises(ConfigurationError, match="RECALLNEXT_ADMIN_TOKEN"):
+        WriteAuth.from_environment({})
+    assert WriteAuth.from_environment({"RECALLNEXT_REQUIRE_AUTH": "false"}) == (
+        WriteAuth(required=False, token=None)
+    )
 
 
 def test_production_write_routes_require_the_runtime_bearer_token(monkeypatch):

@@ -13,6 +13,8 @@ a stable `recallnext.<tailnet>.ts.net` address. No AWS inbound web port is neede
 - Tailscale Funnel publishes that loopback service through managed HTTPS.
 - Read endpoints are public. Every extraction or evidence state change requires
   the runtime reviewer bearer token.
+- Authentication defaults on. A missing or short reviewer token stops the API
+  instead of exposing write operations.
 - The OpenAI key and reviewer token exist only in the root-owned runtime env file.
   They are never compiled into the frontend image or committed to Git.
 

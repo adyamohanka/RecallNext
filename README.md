@@ -38,6 +38,7 @@ Prerequisites: Python 3.10+, Node.js 24+, and pnpm 11. From the repository root:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
+export RECALLNEXT_REQUIRE_AUTH=false
 python -m uvicorn backend.app:app --reload
 ```
 
@@ -57,6 +58,7 @@ openFDA food enforcement record, then start the API with:
 ```bash
 export RECALLNEXT_DATA_SOURCE=EXASOL_PERSONAL
 export RECALLNEXT_INCIDENT_ID="<incident-id>"
+export RECALLNEXT_REQUIRE_AUTH=false
 export EXASOL_DSN="<host>/<pinned-certificate-fingerprint>:<port>"
 export EXASOL_USER="<database-user>"
 export EXASOL_PASSWORD="<database-password>"

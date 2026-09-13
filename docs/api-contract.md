@@ -18,9 +18,13 @@ Incident identifiers are discovered at runtime. Unknown incidents return 404.
 | POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/reject` | Human rejection without changing decisions or version |
 | POST | `/api/incidents/INC-DEMO-001/evidence/{evidence_id}/retract` | Human retraction, reconstruction from active evidence and a new version |
 
-When `RECALLNEXT_REQUIRE_AUTH=true`, every POST route requires
+Authentication defaults to enabled. Without a valid
+`RECALLNEXT_ADMIN_TOKEN`, the API refuses to start. When
+`RECALLNEXT_REQUIRE_AUTH=true`, every POST route requires
 `Authorization: Bearer <reviewer-token>`. The token is supplied at runtime and
-is never returned by the API. GET routes remain read-only and public.
+is never returned by the API. GET routes remain read-only and public. An
+operator must explicitly set `RECALLNEXT_REQUIRE_AUTH=false` to run an
+unauthenticated local development server.
 
 Document extraction accepts multipart field `document` with PDF, PNG, JPEG,
 WebP, plain text, CSV, or JSON content. It uses the selected action's target,

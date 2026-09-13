@@ -18,6 +18,7 @@ source .venv/bin/activate
 python -m pip install -e ".[dev]"
 python -m data.generate_fixture --check
 python -m pytest -q
+export RECALLNEXT_REQUIRE_AUTH=false
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
@@ -65,7 +66,8 @@ exakit info
 
 Export the values returned by the deployment owner. RecallNext reads process
 environment variables and does not load `.env` automatically. Never commit the
-password.
+password. The examples explicitly disable write authentication only for a
+loopback development session. Public deployments must keep authentication on.
 
 ```bash
 export EXASOL_DSN="127.0.0.1/<sha256-certificate-fingerprint>:8563"
@@ -93,6 +95,7 @@ or contract rows cannot be read.
 ```bash
 export RECALLNEXT_DATA_SOURCE="EXASOL_PERSONAL"
 export RECALLNEXT_INCIDENT_ID="<incident-id>"
+export RECALLNEXT_REQUIRE_AUTH=false
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
