@@ -1,8 +1,9 @@
 # RecallNext production deployment
 
-This deployment keeps Exasol Personal and the RecallNext application private on
-the host. Tailscale Funnel is the only public entry point and terminates HTTPS at
-a stable `recallnext.<tailnet>.ts.net` address. No AWS inbound web port is needed.
+This deployment keeps Exasol Personal private and publishes only the RecallNext
+HTTP application through an HTTPS edge. Use either Caddy with a DNS hostname or
+Tailscale Funnel. The application remains bound to `127.0.0.1:8080` in both
+configurations.
 
 ## Runtime boundary
 
@@ -10,7 +11,7 @@ a stable `recallnext.<tailnet>.ts.net` address. No AWS inbound web port is neede
 - Both containers join the private `recallnext-internal` Docker network. Exasol
   has no published host port, while RecallNext publishes only
   `127.0.0.1:8080`.
-- Tailscale Funnel publishes that loopback service through managed HTTPS.
+- Caddy or Tailscale Funnel publishes that loopback service through HTTPS.
 - Read endpoints are public. Every extraction or evidence state change requires
   the runtime reviewer bearer token.
 - Authentication defaults on. A missing or short reviewer token stops the API
@@ -38,7 +39,29 @@ curl --fail --silent http://127.0.0.1:8080/api/health
 The Compose service is read-only, drops Linux capabilities, cannot gain new
 privileges, has bounded logs, and restarts after a host reboot.
 
-## Stable free HTTPS address
+## Public HTTPS with Caddy
+
+Point a DNS hostname at the host's public IP. For a short-lived evaluation
+deployment without purchasing a domain, `nip.io` can derive a hostname from an
+IPv4 address. For example, public IP `203.0.113.10` can use
+`recallnext.203-0-113-10.nip.io`. The hostname remains valid only while that
+public IP remains assigned to the host.
+
+Allow inbound TCP ports 80 and 443 to the host, set the hostname at runtime, and
+start the application plus the hardened Caddy edge:
+
+```bash
+export RECALLNEXT_PUBLIC_HOST="recallnext.203-0-113-10.nip.io"
+docker compose -f compose.production.yaml -f compose.caddy.yaml up -d --build
+docker compose -f compose.production.yaml -f compose.caddy.yaml ps
+curl --fail --silent "https://${RECALLNEXT_PUBLIC_HOST}/api/health"
+```
+
+Port 80 is used for certificate issuance and HTTP-to-HTTPS redirects. Caddy
+stores certificates in a named volume, runs with only `NET_BIND_SERVICE`, has a
+read-only root filesystem, and proxies solely to the loopback application.
+
+## Stable free HTTPS with Tailscale Funnel
 
 Install Tailscale from its official Linux repository, enroll the host in a free
 personal tailnet, then configure a stable hostname and Funnel:
@@ -48,12 +71,15 @@ sudo tailscale set --hostname=recallnext
 sudo tailscale up
 sudo tailscale funnel --bg http://127.0.0.1:8080
 tailscale funnel status
+export RECALLNEXT_PUBLIC_HOST="recallnext.<tailnet>.ts.net"
 ```
 
 The first `tailscale up` prints a one-time account authorization link. After the
 account enables MagicDNS, HTTPS, and Funnel, the status command reports the exact
-stable public URL. Funnel traffic is outbound from the VM, so ports 80 and 443 do
-not need to be opened in the EC2 security group.
+stable public URL. Replace `<tailnet>` in the exported hostname with the value in
+that URL before running the shared verification commands below. Funnel traffic
+is outbound from the VM, so ports 80 and 443 do not need to be opened in the EC2
+security group.
 
 ## Secret rotation
 
@@ -69,8 +95,8 @@ or committed `.env` file.
 ## Verification
 
 ```bash
-curl --fail --silent https://recallnext.<tailnet>.ts.net/api/health
-curl --fail --silent https://recallnext.<tailnet>.ts.net/api/incidents
+curl --fail --silent "https://${RECALLNEXT_PUBLIC_HOST}/api/health"
+curl --fail --silent "https://${RECALLNEXT_PUBLIC_HOST}/api/incidents"
 docker inspect --format '{{json .State.Health}}' recallnext-recallnext-1
 docker compose -f compose.production.yaml logs --tail=100 recallnext
 ```

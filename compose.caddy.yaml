@@ -1,0 +1,33 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    network_mode: host
+    environment:
+      RECALLNEXT_PUBLIC_HOST: ${RECALLNEXT_PUBLIC_HOST:?Set the public DNS hostname}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - recallnext-caddy-data:/data
+      - recallnext-caddy-config:/config
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  recallnext-caddy-data:
+    name: recallnext-caddy-data
+  recallnext-caddy-config:
+    name: recallnext-caddy-config
