@@ -1,5 +1,9 @@
 # Evaluation record
 
+## Sequential planner benchmark
+
+Run `python -m planner.benchmark_cli` to regenerate the committed raw JSON and Markdown summary in `docs/evaluation-results/`. The benchmark uses two hidden synthetic scenarios, budgets of 4 and 11 simulated minutes, and fixed seeds 11, 17, 23, 29 and 31. It evaluates all five declared strategies. Each action reveals only its target shipment rows and filters candidates consistent with that observation; it never substitutes a hidden full scenario. Runs choose only affordable actions, so an over-budget preferred action cannot prevent another affordable action. Generated artifacts intentionally omit wall-clock timings and are byte-reproducible. `plan_incident(...)["planner_seconds"]` separately measures classification time only; no live Exasol or AWS timing is included.
+
 This record separates four verification scopes: Adya's historical offline QA
 run, local checks on the synchronized PR #2 branch, completed live Exasol runs,
 and the still-pending investigation-strategy evaluation. All committed
