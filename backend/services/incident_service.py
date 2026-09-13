@@ -58,6 +58,110 @@ class IncidentService:
     def __init__(self, connection: Any):
         self.connection = connection
 
+    def list_incidents(self) -> list[dict[str, Any]]:
+        """Return the latest stored version of every Exasol incident."""
+
+        return _rows(
+            self.connection.execute(
+                "SELECT I.INCIDENT_ID, I.INCIDENT_VERSION, I.SNAPSHOT_VERSION, "
+                "I.PRODUCT_ID, I.STATUS, I.CREATED_AT "
+                "FROM RECALLNEXT.INCIDENT I "
+                "JOIN (SELECT INCIDENT_ID, MAX(INCIDENT_VERSION) AS INCIDENT_VERSION "
+                "FROM RECALLNEXT.INCIDENT GROUP BY INCIDENT_ID) L "
+                "ON L.INCIDENT_ID = I.INCIDENT_ID "
+                "AND L.INCIDENT_VERSION = I.INCIDENT_VERSION "
+                "ORDER BY I.CREATED_AT DESC, I.INCIDENT_ID"
+            )
+        )
+
+    def load_workflow_records(
+        self, incident_id: str, incident_version: int
+    ) -> dict[str, Any]:
+        """Load the complete bounded incident component used by the API planner."""
+
+        snapshot = self.load_incident_snapshot(incident_id, incident_version)
+        parameters = {
+            "incident_id": incident_id,
+            "incident_version": incident_version,
+        }
+        product_id = snapshot["incident"]["product_id"]
+        product_parameters = {"product_id": product_id}
+        lots = _rows(
+            self.connection.execute(
+                "SELECT LOT_ID, LOT_CODE, LOT_SOURCE_ID, PRODUCT_ID, "
+                "QUANTITY_CASES, RECALLED, RECEIVED_AT, LOCATION_ID, SOURCE_EVENT_ID "
+                "FROM RECALLNEXT.LOT WHERE PRODUCT_ID = {product_id} "
+                "ORDER BY LOT_SOURCE_ID, LOT_CODE",
+                product_parameters,
+            )
+        )
+        containers = _rows(
+            self.connection.execute(
+                "SELECT DISTINCT C.CONTAINER_ID, C.LOT_ID, C.PRODUCT_ID, "
+                "C.QUANTITY_CASES, C.HOMOGENEITY_VERIFIED, C.LOCATION_ID, "
+                "C.SOURCE_EVENT_ID FROM RECALLNEXT.CONTAINER C "
+                "JOIN RECALLNEXT.SHIPMENT_CONTAINER SC "
+                "ON SC.CONTAINER_ID = C.CONTAINER_ID "
+                "JOIN RECALLNEXT.SHIPMENT S ON S.SHIPMENT_ID = SC.SHIPMENT_ID "
+                "WHERE S.PRODUCT_ID = {product_id} ORDER BY C.CONTAINER_ID",
+                product_parameters,
+            )
+        )
+        shipment_containers = _rows(
+            self.connection.execute(
+                "SELECT SC.SHIPMENT_ID, SC.CONTAINER_ID, SC.PICK_QUANTITY_CASES, "
+                "SC.PICK_RECORD_ID FROM RECALLNEXT.SHIPMENT_CONTAINER SC "
+                "JOIN RECALLNEXT.SHIPMENT S ON S.SHIPMENT_ID = SC.SHIPMENT_ID "
+                "WHERE S.PRODUCT_ID = {product_id} "
+                "ORDER BY SC.SHIPMENT_ID, SC.CONTAINER_ID",
+                product_parameters,
+            )
+        )
+        actions = _rows(
+            self.connection.execute(
+                "SELECT ACTION_ID, INCIDENT_ID, INCIDENT_VERSION, ACTION_TYPE, "
+                "TARGET_TYPE, TARGET_ID, QUESTION, ESTIMATED_MINUTES, AVAILABILITY "
+                "FROM RECALLNEXT.EVIDENCE_ACTION "
+                "WHERE INCIDENT_ID = {incident_id} "
+                "AND INCIDENT_VERSION = {incident_version} ORDER BY ACTION_ID",
+                parameters,
+            )
+        )
+        action_shipments = _rows(
+            self.connection.execute(
+                "SELECT A.ACTION_ID, A.SHIPMENT_ID "
+                "FROM RECALLNEXT.ACTION_SHIPMENT A "
+                "JOIN RECALLNEXT.EVIDENCE_ACTION E ON E.ACTION_ID = A.ACTION_ID "
+                "WHERE E.INCIDENT_ID = {incident_id} "
+                "AND E.INCIDENT_VERSION = {incident_version} "
+                "ORDER BY A.ACTION_ID, A.SHIPMENT_ID",
+                parameters,
+            )
+        )
+        public_recall = _one(
+            self.connection.execute(
+                "SELECT SOURCE_NAME, RECALL_NUMBER, EVENT_ID, CLASSIFICATION, "
+                "RECALL_STATUS, REPORT_DATE, RECALL_INITIATION_DATE, RECALLING_FIRM, "
+                "PRODUCT_DESCRIPTION, CODE_INFO, DISTRIBUTION_PATTERN, "
+                "REASON_FOR_RECALL, SOURCE_URL, DATASET_LAST_UPDATED, FETCHED_AT "
+                "FROM RECALLNEXT.PUBLIC_RECALL_SOURCE "
+                "WHERE INCIDENT_ID = {incident_id} ORDER BY FETCHED_AT DESC LIMIT 1",
+                {"incident_id": incident_id},
+            )
+        )
+        return {
+            **snapshot,
+            "lots": lots,
+            "containers": containers,
+            "shipment_containers": shipment_containers,
+            "actions": actions,
+            "action_shipments": action_shipments,
+            "candidate_edges": self.get_candidate_edges(
+                incident_id, incident_version
+            ),
+            "public_recall": public_recall,
+        }
+
     def load_incident_snapshot(
         self, incident_id: str, incident_version: int
     ) -> dict[str, Any]:

@@ -43,8 +43,23 @@ def create_app() -> FastAPI:
         return {
             "status": "ok",
             "data_source": workflow.data_source,
-            "database_connected": False,
+            "database_connected": workflow.database_connected,
             "detail": workflow.data_source_detail,
+        }
+
+    @app.get("/api/incidents")
+    def list_incidents() -> dict[str, object]:
+        incident = workflow.incident()
+        return {
+            "incidents": [
+                {
+                    "incident_id": incident["incident_id"],
+                    "current_version": incident["current_version"],
+                    "title": incident["title"],
+                    "status": "OPEN",
+                    "data_source": incident["data_source"],
+                }
+            ]
         }
 
     @app.get("/api/incidents/{incident_id}")
@@ -90,8 +105,14 @@ def create_app() -> FastAPI:
         return {
             "action_id": action_id,
             "proposed_fact": workflow.example_fact(action_id),
-            "extraction_mode": "SYNTHETIC_EXAMPLE",
+            "source_reference": workflow.source_reference(action_id),
+            "extraction_mode": "DETERMINISTIC_CANDIDATE_PREVIEW",
         }
+
+    @app.get("/api/incidents/{incident_id}/evidence")
+    def get_evidence(incident_id: str) -> dict[str, object]:
+        require_incident(incident_id)
+        return workflow.evidence_log()
 
     @app.post("/api/incidents/{incident_id}/evidence", status_code=201)
     def submit_evidence(

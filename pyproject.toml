@@ -23,6 +23,7 @@ dev = [
 [project.scripts]
 recallnext-generate-fixture = "data.generate_fixture:main"
 recallnext-load-fixture = "data.load_fixture:main"
+recallnext-import-openfda = "data.import_openfda:main"
 recallnext-smoke = "backend.smoke:main"
 
 [tool.setuptools.packages.find]
