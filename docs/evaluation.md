@@ -5,17 +5,15 @@
 Run `python -m planner.benchmark_cli` to regenerate the committed raw JSON and Markdown summary in `docs/evaluation-results/`. The benchmark uses two hidden synthetic scenarios, budgets of 4 and 11 simulated minutes, and fixed seeds 11, 17, 23, 29 and 31. It evaluates all five declared strategies. Each action reveals only its target shipment rows and filters candidates consistent with that observation; it never substitutes a hidden full scenario. Runs choose only affordable actions, so an over-budget preferred action cannot prevent another affordable action. Generated artifacts intentionally omit wall-clock timings and are byte-reproducible. `plan_incident(...)["planner_seconds"]` separately measures classification time only; no live Exasol or AWS timing is included.
 
 This record separates four verification scopes: Adya's historical offline QA
-run, local checks on the synchronized PR #2 branch, completed live Exasol runs,
-and the still-pending investigation-strategy evaluation. All committed
+run, local checks on the merged application, completed live Exasol runs, and
+the committed synthetic investigation-strategy evaluation. All committed
 operational data is synthetic.
 
 ## Revisions under test
 
 - Harini integration base: `6450a4189fe1a67be379cd915a29a3c59361c5e8`
 - Historical Adya branch: `feat/adya-qa-docs-demo`
-- Current `main` merged into PR #2: `59bec09856552f1c16f51a8bfd91357839c4fac0`
-- Previous exact integrated functional head run: `8c83f836c06325b74bb40f827ac257dbce81e23f`
-- Current PR #2 exact functional head run: `64e4c51f1f7683ab3ca9cab401662a75b04bf236`
+- Current merged benchmark revision (PR #11): `91f7046`
 
 The raw offline output records Adya's original base and commands. It is
 historical evidence for that run, not a live Exasol measurement and not a claim
@@ -140,26 +138,27 @@ The web API still reads the committed CSV fixture and labels that source. It
 must not be described as Exasol-backed until its database adapter is wired into
 the request path and tested.
 
-## Pending investigation-strategy experiment
+## Sequential investigation-strategy experiment
 
-The baseline module produces deterministic action orders and trace metrics. A
-final shared-fixture sequential experiment still needs to apply evidence,
-recompute rankings, and score each strategy under equal conditions.
+The benchmark applies action-scoped synthetic evidence, recomputes rankings,
+and scores every strategy under equal scenarios, budgets, and seeds. Raw runs
+and the aggregate summary are committed in `docs/evaluation-results/`.
 
 | Strategy | Current state |
 |---|---|
-| Hold all plausible inventory | Ordering implemented; sequential score pending |
-| Deterministic random action | Ordering implemented; multi-seed score pending |
-| Cheapest evidence first | Ordering implemented; score pending |
-| Highest directly involved quantity first | Ordering implemented; score pending |
-| RecallNext ranking | One-step ordering implemented; sequential score pending |
+| Hold all plausible inventory | Sequential score recorded |
+| Deterministic random action | Multi-seed sequential score recorded |
+| Cheapest evidence first | Sequential score recorded |
+| Highest directly involved quantity first | Sequential score recorded |
+| RecallNext ranking | Sequential score recorded |
 | Full-information oracle | Tiny correctness utility only |
 
 A fair run must give every policy the same incidents, visible facts, obtainable
 evidence, realized outcomes, and budget. Retain per-incident seeds, ties,
 errors, and simple-baseline wins. Report false exclusions, affected-case
 coverage, unnecessary held cases, resolved cases, actions, simulated retrieval
-minutes, replay agreement, and actual computation time.
+minutes, and replay agreement. Machine-dependent computation timings are
+reported separately rather than committed in deterministic benchmark artifacts.
 
 ## Known unavailable checks
 
